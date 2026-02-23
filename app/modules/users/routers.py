@@ -1,0 +1,126 @@
+from math import ceil
+from fastapi import APIRouter, Query, Request
+from typing import Annotated
+from src.core.schemas import SingleObjectResponse, ObjectListResponse, PagintationParams, PaginatedResponse
+from .schemas import UserInDB, UserInvite, UserOut, UserFilters
+from .dependencies.services import UserService, Depends, get_user_service
+from src.core.dependencies.auth import get_request_context
+from src.docs.users import RESPONSES, DOCSTRINGS, SUMMARIES
+
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"],
+)
+
+
+# ---------------------------------------------------------------------
+# GET routes
+# ---------------------------------------------------------------------
+@router.get(
+    path="",
+    response_model=PaginatedResponse[UserOut],
+    # responses=RESPONSES["get_user_by_email"],
+    # summary=SUMMARIES["get_user_by_email"],
+    # description=DOCSTRINGS["get_user_by_email"],
+)
+async def get_users(
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    pagination_params: Annotated[PagintationParams, Depends()],
+    filters: Annotated[UserFilters, Depends()],
+) -> PaginatedResponse[UserOut]:
+    page = getattr(pagination_params, "page", 1)
+    limit = getattr(pagination_params, "limit", 20) or 20
+    skip = (page - 1) * limit
+    total_rows, data = await user_service.get_users(skip=skip, limit=limit, filters=filters)
+    return PaginatedResponse(
+        data=data,
+        total_rows=total_rows,
+        total_pages=ceil(total_rows / limit) if limit else 1,
+        page=page,
+        limit=limit,
+    )
+
+
+@router.get(
+    path="/{id}",
+    response_model=SingleObjectResponse[UserOut],
+    responses=RESPONSES["get_user_by_id"],
+    summary=SUMMARIES["get_user_by_id"],
+    description=DOCSTRINGS["get_user_by_id"],
+)
+async def get_user_by_id(
+    id: str,
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> SingleObjectResponse[UserOut]:
+    data = await user_service.get_user(id)
+    return SingleObjectResponse(data=data)
+
+
+@router.get(
+    path="/email/{email}",
+    response_model=SingleObjectResponse[UserOut],
+    responses=RESPONSES["get_user_by_email"],
+    summary=SUMMARIES["get_user_by_email"],
+    description=DOCSTRINGS["get_user_by_email"],
+)
+async def get_user_by_email(
+    email: str,
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> SingleObjectResponse[UserOut]:
+    data = await user_service.get_user_by_email(email)
+    return SingleObjectResponse(data=data)
+
+
+# ---------------------------------------------------------------------
+# POST routes
+# ---------------------------------------------------------------------
+@router.post(
+    "/invitations",
+    response_model=SingleObjectResponse[UserOut],
+    responses=RESPONSES.get("invite_user"),
+    summary=SUMMARIES.get("invite_user"),
+    description=DOCSTRINGS.get("invite_user"),
+)
+async def invite_user(
+    request: Request,
+    body: UserInvite,
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    current_user: Annotated[UserInDB, Depends(get_request_context)],
+) -> SingleObjectResponse[UserOut]:
+    data = await user_service.invite_user(current_user, str(request.base_url), body)
+    return SingleObjectResponse(data=data)
+
+
+@router.post(
+    "/invitations/resend/{user_id}",
+    response_model=SingleObjectResponse[UserOut],
+    responses=RESPONSES.get("resend_invitation"),
+    summary=SUMMARIES.get("resend_invitation"),
+    description=DOCSTRINGS.get("resend_invitation"),
+)
+async def resend_invitation(
+    request: Request,
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    current_user: Annotated[UserInDB, Depends(get_request_context)],
+    user_id: str,
+) -> SingleObjectResponse[UserOut]:
+    user = await user_service.get_user(user_id)
+    await user_service.send_invitation(user, user.email, str(request.base_url))
+    return SingleObjectResponse(data=user)
+
+
+# ---------------------------------------------------------------------
+# DELETE routes
+# ---------------------------------------------------------------------
+@router.delete(
+    path="/",
+    status_code=204,
+    responses=RESPONSES["delete_user"],
+    summary=SUMMARIES["delete_user"],
+    description=DOCSTRINGS["delete_user"],
+)
+async def delete_user(
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    email: str = Query(..., description="Email of the user to delete."),
+) -> None:
+    await user_service.delete_user(email)

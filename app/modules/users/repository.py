@@ -1,0 +1,105 @@
+from datetime import datetime
+from typing import Any
+
+from app.core.enums import UserStatus
+from app.modules.users.models import User
+import re
+
+class UserRepository:
+
+    async def get_by_id(self, id: str, session=None) -> User | None:
+        return await User.get(id, session=session)
+
+    async def get_by_email(self, email: str, session=None) -> User | None:
+        return await User.find_one(User.email == email.lower().strip(), session=session)
+
+    async def get_users(
+        self,
+        skip: int = 0,
+        limit: int = 20,
+        filters: dict = {},
+        session=None,
+    ) -> tuple[int, list[User]]:
+        filters_list = []
+        if filters is not None:
+            if filters.get("first_name"):
+                filters_list.append(User.first_name.regex == re.compile(filters["first_name"], re.IGNORECASE))
+            if filters.get("last_name"):
+                filters_list.append(User.last_name.regex == re.compile(filters["last_name"], re.IGNORECASE))
+            if filters.get("country_code"):
+                filters_list.append(User.country_code.regex == re.compile(filters["country_code"], re.IGNORECASE))
+            if filters.get("email"):
+                filters_list.append(User.email.regex == re.compile(filters["email"], re.IGNORECASE))
+            if filters.get("whatsapp_number"):
+                filters_list.append(User.whatsapp_number.regex == re.compile(filters["whatsapp_number"], re.IGNORECASE))
+            if filters.get("business_name"):
+                filters_list.append(User.business_name.regex == re.compile(filters["business_name"], re.IGNORECASE))
+            if filters.get("store_url"):
+                filters_list.append(User.store_url.regex == re.compile(filters["store_url"], re.IGNORECASE))
+            if filters.get("status"):
+                filters_list.append(User.status == filters["status"])
+        query = User.find(session=session)
+        total = await query.count()
+        users = await query.skip(skip).limit(limit).to_list()
+        return total, users
+
+    async def create(self, data: dict[str, Any], session=None) -> User:
+        if "email" in data:
+            data = {**data, "email": data["email"].lower().strip()}
+        user = User(**data)
+        await user.insert(session=session)
+        return user
+
+    async def update_by_id(self, id: str, data: dict[str, Any], session=None) -> User | None:
+        user = await User.get(id, session=session)
+        if user is None:
+            return None
+        for key, value in data.items():
+            if hasattr(User, key):
+                setattr(user, key, value)
+        await user.save(session=session)
+        return user
+
+    async def update_by_email(self, email: str, data: dict[str, Any], session=None) -> User | None:
+        user = await self.get_by_email(email, session=session)
+        if user is None:
+            return None
+        for key, value in data.items():
+            if hasattr(User, key):
+                setattr(user, key, value)
+        await user.save(session=session)
+        return user
+
+    async def increment_invalid_login_attempts(self, email: str, session=None) -> User | None:
+        user = await self.get_by_email(email, session=session)
+        if user is None:
+            return None
+        user.invalid_login_attempts += 1
+        await user.save(session=session)
+        return user
+
+    async def reset_invalid_login_attempts(self, email: str, session=None) -> User | None:
+        user = await self.get_by_email(email, session=session)
+        if user is None:
+            return None
+        await user.set({User.invalid_login_attempts: 0}, session=session)
+        return user
+
+    async def update_status(self, email: str, status: UserStatus, session=None) -> User | None:
+        user = await self.get_by_email(email, session=session)
+        if user is None:
+            return None
+        await user.set({User.status: status}, session=session)
+        return user
+
+    async def update_last_login(self, email: str, last_login: datetime, session=None) -> User | None:
+        user = await self.get_by_email(email, session=session)
+        if user is None:
+            return None
+        await user.set({User.last_login: last_login}, session=session)
+        return user
+
+    async def delete_by_email(self, email: str, session=None) -> None:
+        user = await self.get_by_email(email, session=session)
+        if user is not None:
+            await user.delete(session=session)

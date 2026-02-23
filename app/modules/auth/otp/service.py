@@ -1,0 +1,79 @@
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+from app.core.enums import OTPStatus, OTPUsage
+from app.core.config import settings
+from .repository import OTPRepository
+from app.core.utils.random import generate_random_code
+from .schemas import (
+    OTPCreate, 
+    OTPInternal,
+)
+from .exceptions import (
+    OTPExpiredException,
+    InvalidOTPException,
+    OTPAlreadyUsedException,
+    SuspiciousOTPActivityException,
+)
+
+
+class OTPService:
+    def __init__(self, otp_repo: OTPRepository) -> None:
+        self.otp_repo = otp_repo
+
+    async def get_otp(
+        self, 
+        code: Optional[str] = None, 
+        email: Optional[str] = None, 
+        usage: Optional[OTPUsage] = None,
+        session = None,
+    ) -> OTPInternal:
+        otp = await self.otp_repo.get_otp(email=email, usage=usage, code=code, session=session)
+        if not otp:
+            raise InvalidOTPException()
+        return OTPInternal.model_validate(otp)
+
+    async def create_otp(self, data: OTPCreate, session = None) -> OTPInternal:
+        await self.otp_repo.revoke_otps(data.email, data.usage, session=session)
+        code = await self.generate_otp_code(email=data.email, session=session)
+        payload = data.model_dump()
+        payload.update({
+            "code": code, 
+            "status": OTPStatus.PENDING,
+            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=settings.otp_expiration_minutes),
+        })
+        otp = await self.otp_repo.create_otp(payload, session=session)
+        return OTPInternal.model_validate(otp)
+
+    async def generate_otp_code(self, email: str, max_attempts: int = 10, session = None) -> str:
+        for _ in range(max_attempts):
+            code = generate_random_code()
+            exists = await self.otp_repo.get_otp(email=email, code=code, session=session)
+            if exists is None:
+                return code
+        raise SuspiciousOTPActivityException()
+
+    def is_expired(self, otp: OTPInternal) -> bool:
+        if otp.expires_at < datetime.now(timezone.utc):
+            return True
+        return False
+
+    async def verify_otp(self, code: str, session = None) -> OTPInternal:
+        """Verifies OTP code. Raises InvalidOTPException if the otp is expired, used before or not found."""
+        
+        otp = await self.get_otp(code=code, session=session)
+        if self.is_expired(otp):
+            raise OTPExpiredException()
+        if otp.status != OTPStatus.PENDING:
+            raise OTPAlreadyUsedException()
+        
+        await self.otp_repo.update_otp_status(
+            email=otp.email, 
+            code=code, 
+            new_status=OTPStatus.VERIFIED, 
+            session=session
+        )
+        return OTPInternal.model_validate(otp)
+
+    async def revoke_otps(self, email: str, usage: Optional[OTPUsage] = None, session = None) -> None:
+        await self.otp_repo.revoke_otps(email, usage, session=session)
+    
