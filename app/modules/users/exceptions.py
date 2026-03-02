@@ -45,3 +45,8 @@ class InvitationNotAllowedException(BaseAppException):
     """Raised when trying to send an invitation to an invalid user."""
     def __init__(self, detail: str | None = "Invitation not allowed. This may happen because the user is already set up or blocked.", status_code: int = status.HTTP_403_FORBIDDEN):
         super().__init__(detail, status_code)
+
+class InvalidStoreLinkException(BaseAppException):
+    """Raised when the store link is invalid."""
+    def __init__(self, detail: str | None = "The store link is invalid or not available", status_code: int = status.HTTP_400_BAD_REQUEST):
+        super().__init__(detail, status_code)

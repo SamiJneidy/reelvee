@@ -11,6 +11,7 @@ class TokenScope(str, Enum):
     INVITE = "INVITE"
     SIGN_UP_COMPLETE = "SIGN_UP_COMPLETE"
     RESET_PASSWORD = "RESET_PASSWORD"
+    EMAIL_CHANGE = "EMAIL_CHANGE"
 
 class UserRole(str, Enum):
     SUPER_ADMIN = "SUPER_ADMIN"

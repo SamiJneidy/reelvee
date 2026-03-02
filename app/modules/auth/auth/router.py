@@ -1,54 +1,39 @@
-from typing import Annotated
-from fastapi import (
-    APIRouter,
-    Depends,
-    Request,
-    Response,
-    status,
-)
-from src.authorization.exceptions import PermissionDeniedException
-from src.core.enums import TokenScope
-from src.users.schemas import UserInDB, UserOut
-from src.core.schemas import SingleObjectResponse, SuccessfulResponse, ErrorResponse
+from app.modules.users.schemas.internal import UserInternal
+from app.modules.users.schemas.responses import UserResponse
+from app.modules.auth.auth.schemas.responses import CurrentSessionResponse, LoginResponse, SignUpCompleteResponse, VerifyEmailResponse
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from redis.asyncio import Redis
-from .services.auth_service import AuthService
-from .schemas.auth_schemas import (
-    CurrentUserSessionOut,
-    UserInviteAcceptRequest,
+
+from app.core.context import RequestContext
+from app.core.database import get_session
+from app.modules.auth.auth.schemas.requests import ChangeEmailRequest, ChangeEmailRequest, RequestEmailChangeRequest, SignUpRequest
+from app.modules.auth.otp.schemas.requests import SendEmailVerificationOTPRequest
+from app.shared.schemas import SingleObjectResponse
+from app.modules.users.schemas import UserResponse
+from app.shared.schemas.responses import SuccessResponse
+
+from .dependencies import (
+    get_auth_service,
+    get_user_from_sign_up_complete_token,
+    get_current_session,
+    get_request_context,
+)
+from .docs import DOCSTRINGS, RESPONSES, SUMMARIES
+from .schemas import (
+    CurrentSessionResponse,
     LoginRequest,
     LoginResponse,
-    SignUp,
+    RequestEmailVerificationResponse,
+    RequestPasswordResetRequest,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
     SignUpCompleteRequest,
     SignUpCompleteResponse,
     VerifyEmailRequest,
     VerifyEmailResponse,
-    ResetPasswordRequest,
-    ResetPasswordResponse,
-    RequestEmailVerificationOTPRequest,
-    RequestEmailVerificationOTPResponse,
-    RequestPasswordResetOTPRequest,
-    RequestPasswordResetOTPResponse,
-    VerifyPasswordResetOTPRequest,
-    VerifyPasswordResetOTPResponse,
 )
-from .dependencies import (
-    get_auth_service,
-    get_redis,
-)
-from src.core.dependencies.auth import (
-    get_request_context, 
-    get_current_user_from_sign_up_complete_token, 
-    get_me,
-    oauth2_scheme,
-)
-from src.core.schemas.context import RequestContext
-from src.docs.auth import RESPONSES, DOCSTRINGS, SUMMARIES
+from .service import AuthService
 
-
-# ---------------------------------------------------------------------
-# Router Definition
-# ---------------------------------------------------------------------
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
@@ -56,273 +41,262 @@ router = APIRouter(
 
 
 # ---------------------------------------------------------------------
-# GET routes
+# GET
 # ---------------------------------------------------------------------
 @router.get(
     "/me",
-    response_model=SingleObjectResponse[CurrentUserSessionOut],
-    responses=RESPONSES["get_me"],
-    summary=SUMMARIES["get_me"],
-    description=DOCSTRINGS["get_me"],
+    response_model=SingleObjectResponse[CurrentSessionResponse],
+    responses=RESPONSES.get("get_me", {}),
+    summary=SUMMARIES.get("get_me", "Get current session"),
+    description=DOCSTRINGS.get("get_me", ""),
 )
-async def get_current_session(
-    current_session: Annotated[CurrentUserSessionOut, Depends(get_me)],
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> SingleObjectResponse[CurrentUserSessionOut]:
-    return SingleObjectResponse(data=current_session)
-
+async def me(
+    current_session: CurrentSessionResponse = Depends(get_current_session),
+) -> SingleObjectResponse[CurrentSessionResponse]:
+    return SingleObjectResponse[CurrentSessionResponse](data=current_session)
 
 # ---------------------------------------------------------------------
-# POST routes
+# POST
 # ---------------------------------------------------------------------
 @router.post(
     "/signup",
-    response_model=SingleObjectResponse[UserOut],
-    responses=RESPONSES["signup"],
-    summary=SUMMARIES["signup"],
-    description=DOCSTRINGS["signup"],
+    response_model=SingleObjectResponse[UserResponse],
+    responses=RESPONSES.get("signup", {}),
+    summary=SUMMARIES.get("signup", "Sign up"),
+    description=DOCSTRINGS.get("signup", ""),
 )
 async def signup(
-    body: SignUp,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> SingleObjectResponse[UserOut]:
-    data = await auth_service.sign_up(body)
-    return SingleObjectResponse(data=data)
+    body: SignUpRequest,
+    session = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> SingleObjectResponse[UserResponse]:
+    data = await auth_service.sign_up(body, session)
+    return SingleObjectResponse[UserResponse](data=data)
 
 
 @router.post(
     "/signup/complete",
     response_model=SingleObjectResponse[SignUpCompleteResponse],
-    responses=RESPONSES["sign_up_complete"],
-    summary=SUMMARIES["sign_up_complete"],
-    description=DOCSTRINGS["sign_up_complete"],
+    responses=RESPONSES.get("sign_up_complete", {}),
+    summary=SUMMARIES.get("sign_up_complete", "Complete sign up"),
+    description=DOCSTRINGS.get("sign_up_complete", ""),
 )
 async def sign_up_complete(
     request: Request,
     response: Response,
     body: SignUpCompleteRequest,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-    current_user: Annotated[UserOut, Depends(get_current_user_from_sign_up_complete_token)],
+    session = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+    current_user: UserResponse = Depends(get_user_from_sign_up_complete_token),
 ) -> SingleObjectResponse[SignUpCompleteResponse]:
-    organization_id, branch_id, data = await auth_service.sign_up_complete(current_user.email, body)
+    data = await auth_service.sign_up_complete(current_user.email, body, session)
     response.delete_cookie("sign_up_complete_token")
-    await auth_service.create_tokens_and_set_cookies(
-        request, 
-        response, 
-        current_user.id, 
-        branch_id,
-        organization_id
+    access_token = await auth_service.create_access_token(
+        request, response, current_user.id, set_cookie=True
     )
-    return SingleObjectResponse(data=data)
-
-
-@router.post(
-    "/invitations/accept",
-    response_model=SingleObjectResponse[UserOut],
-)
-async def accept_invitation(
-    body: UserInviteAcceptRequest,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> SingleObjectResponse[UserOut]:
-    data = await auth_service.accept_invitation(body)
-    return SingleObjectResponse(data=data)
-
+    refresh_token = await auth_service.create_refresh_token(
+        request, response, data.user.id, set_cookie=True
+    )
+    return SingleObjectResponse[SignUpCompleteResponse](data=data)
 
 @router.post(
     "/login",
     response_model=SingleObjectResponse[LoginResponse],
-    responses=RESPONSES["login"],
-    summary=SUMMARIES["login"],
-    description=DOCSTRINGS["login"],
+    responses=RESPONSES.get("login", {}),
+    summary=SUMMARIES.get("login", "Login"),
+    description=DOCSTRINGS.get("login", ""),
 )
 async def login(
     request: Request,
     response: Response,
     body: LoginRequest,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> SingleObjectResponse[LoginResponse]:
-    data = await auth_service.login(body)
-    #########################################
-    # SET CURRENT BRANCH AS THE DEFAULT BRANCH IN THE USERS'S DATA
-    #########################################
-    await auth_service.create_tokens_and_set_cookies(
-        request, 
-        response, 
-        data.user.id,
-        data.user.default_branch_id,
-        data.user.organization_id
-    )
-    return SingleObjectResponse(data=data)
-
-
-
-@router.post(
-    "/switch/branch/{branch_id}",
-    status_code=status.HTTP_204_NO_CONTENT
-)
-async def switch_branch(
-    request: Request,
-    response: Response,
-    branch_id: int,
-    current_session: CurrentUserSessionOut = Depends(get_me),
+    session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
-) -> None:
-    allowed_branch_ids = {branch.id for branch in current_session.access.allowed_branches}
-    if branch_id == current_session.branch.id:
-        raise PermissionDeniedException("It is not allowed to switch to the same branch")
-    if branch_id not in allowed_branch_ids:
-        raise PermissionDeniedException("Branch not found or you are not allowed to access this branch")
-    await auth_service.create_tokens_and_set_cookies(
-        request, 
-        response, 
-        current_session.user.id,
-        branch_id,
-        current_session.organization.id
+) -> SingleObjectResponse[LoginResponse]:
+    
+    data = await auth_service.login(body, session)
+    
+    if not data.user.is_email_verified:
+        return SingleObjectResponse[LoginResponse](data=data)
+    
+    if not data.user.is_completed:
+        sign_up_complete_token = await auth_service.create_sign_up_complete_token(
+            request, response, data.user.id, set_cookie=True
+        )
+        return SingleObjectResponse[LoginResponse](data=data)
+    
+    access_token = await auth_service.create_access_token(
+        request, response, data.user.id, set_cookie=True
     )
-    return 
+    refresh_token = await auth_service.create_refresh_token(
+        request, response, data.user.id, set_cookie=True
+    )
+    return SingleObjectResponse[LoginResponse](data=data)
 
 
 @router.post(
     "/refresh",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=RESPONSES["refresh"],
-    summary=SUMMARIES["refresh"],
-    description=DOCSTRINGS["refresh"],
+    responses=RESPONSES.get("refresh", {}),
+    summary=SUMMARIES.get("refresh", "Refresh access token"),
+    description=DOCSTRINGS.get("refresh", ""),
 )
 async def refresh(
     request: Request,
     response: Response,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> None:
     refresh_token = request.cookies.get("refresh_token")
-    await auth_service.refresh(request, response, refresh_token)
-
-
-@router.post(
-    "/verify-email",
-    response_model=SingleObjectResponse[LoginResponse],
-    responses=RESPONSES["verify_email_after_signup"],
-    summary=SUMMARIES["verify_email_after_signup"],
-    description=DOCSTRINGS["verify_email_after_signup"],
-)
-async def verify_email_after_signup(
-    request: Request,
-    response: Response,
-    body: VerifyEmailRequest,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> SingleObjectResponse[LoginResponse]:
-    data = await auth_service.verify_email_after_signup(body)
-    await auth_service.create_sign_up_complete_token_and_set_cookie(request, response, data.user.id)
-    return SingleObjectResponse(data=data)
-
-
-@router.post(
-    "/reset-password",
-    response_model=SingleObjectResponse[ResetPasswordResponse],
-    responses=RESPONSES["reset_password"],
-    summary=SUMMARIES["reset_password"],
-    description=DOCSTRINGS["reset_password"],
-)
-async def reset_password(
-    body: ResetPasswordRequest,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> SingleObjectResponse[ResetPasswordResponse]:
-    data = await auth_service.reset_password(body)
-    return SingleObjectResponse(data=data)
+    await auth_service.refresh(request, response, refresh_token, set_cookie=True)
 
 
 @router.post(
     "/logout",
-    response_model=SuccessfulResponse,
-    responses=RESPONSES["logout"],
-    summary=SUMMARIES["logout"],
-    description=DOCSTRINGS["logout"],
+    response_model=SuccessResponse,
+    responses=RESPONSES.get("logout", {}),
+    summary=SUMMARIES.get("logout", "Logout"),
+    description=DOCSTRINGS.get("logout", ""),
 )
 async def logout(
-    request: Request,
     response: Response,
-) -> SuccessfulResponse:
+) -> SuccessResponse:
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
-    return SuccessfulResponse(detail="Logged out successfully")
+    return SuccessResponse(detail="Logged out successfully")
 
 
 @router.post(
-    "/otp/request/email-verification",
-    response_model=SingleObjectResponse[RequestEmailVerificationOTPResponse],
-    responses=RESPONSES["request_email_verification_otp"],
-    summary=SUMMARIES["request_email_verification_otp"],
-    description=DOCSTRINGS["request_email_verification_otp"],
+    "/request-email-verification",
+    response_model=SuccessResponse,
+    responses=RESPONSES.get("request_email_verification_otp", {}),
+    summary=SUMMARIES.get("request_email_verification_otp", "Request email verification OTP"),
+    description=DOCSTRINGS.get("request_email_verification_otp", ""),
 )
-async def request_email_verification_otp(
-    body: RequestEmailVerificationOTPRequest,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> SingleObjectResponse[RequestEmailVerificationOTPResponse]:
-    data = await auth_service.request_email_verification_otp(body)
-    return SingleObjectResponse(data=data)
-
+async def request_email_verification(
+    body: SendEmailVerificationOTPRequest,
+    session = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> SuccessResponse:
+    await auth_service.request_email_verification(body, session)
+    return SuccessResponse(detail="Email verification OTP sent successfully")
 
 @router.post(
-    "/otp/verify/email-verification",
-    response_model=SingleObjectResponse[VerifyEmailResponse],
-    responses=RESPONSES["verify_email_verification_otp"],
-    summary=SUMMARIES["verify_email_verification_otp"],
-    description=DOCSTRINGS["verify_email_verification_otp"],
+    "/verify-email",
+    response_model=SingleObjectResponse[UserResponse],
+    responses=RESPONSES.get("verify_email_otp", {}),
+    summary=SUMMARIES.get("verify_email_otp", "Verify email OTP"),
+    description=DOCSTRINGS.get("verify_email_otp", ""),
 )
-async def verify_email_verification_otp(
+async def verify_email(
     body: VerifyEmailRequest,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> SingleObjectResponse[VerifyEmailResponse]:
-    data = await auth_service.verify_email_verification_otp(body)
-    return SingleObjectResponse(data=data)
+    request: Request,
+    response: Response,
+    session = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> SingleObjectResponse[UserResponse]:
+    user = await auth_service.verify_email(body, session)
+    if not user.is_completed:
+        sign_up_complete_token = await auth_service.create_sign_up_complete_token(
+            request, response, user.id, set_cookie=True
+        )
+    return SingleObjectResponse[UserResponse](data=user)
 
 
 @router.post(
-    "/otp/request/password-reset",
-    response_model=SingleObjectResponse[RequestPasswordResetOTPResponse],
-    responses=RESPONSES["request_password_reset_otp"],
-    summary=SUMMARIES["request_password_reset_otp"],
-    description=DOCSTRINGS["request_password_reset_otp"],
+    "/request-password-reset",
+    response_model=SuccessResponse,
+    responses=RESPONSES.get("request_password_reset_otp", {}),
+    summary=SUMMARIES.get("request_password_reset_otp", "Request password reset link"),
+    description=DOCSTRINGS.get("request_password_reset_otp", ""),
 )
-async def request_password_reset_otp(
-    body: RequestPasswordResetOTPRequest,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> SingleObjectResponse[RequestPasswordResetOTPResponse]:
-    data = await auth_service.request_password_reset_otp(body)
-    return SingleObjectResponse(data=data)
+async def request_password_reset(
+    body: RequestPasswordResetRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> SuccessResponse:
+    await auth_service.request_password_reset(body)
+    return SuccessResponse(detail="Password reset link sent successfully")
 
 
 @router.post(
-    "/otp/verify/password-reset",
-    response_model=SingleObjectResponse[VerifyPasswordResetOTPResponse],
-    responses=RESPONSES["verify_password_reset_otp"],
-    summary=SUMMARIES["verify_password_reset_otp"],
-    description=DOCSTRINGS["verify_password_reset_otp"],
+    "/reset-password",
+    status_code=status.HTTP_200_OK,
+    response_model=SuccessResponse,
+    responses=RESPONSES.get("reset_password", {}),
+    summary=SUMMARIES.get("reset_password", "Reset password"),
+    description=DOCSTRINGS.get("reset_password", ""),
 )
-async def verify_password_reset_otp(
-    body: VerifyPasswordResetOTPRequest,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> SingleObjectResponse[VerifyPasswordResetOTPResponse]:
-    data = await auth_service.verify_password_reset_otp(body)
-    return SingleObjectResponse(data=data)
+async def reset_password(
+    body: ResetPasswordRequest,
+    session = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> SuccessResponse:
+    await auth_service.reset_password(body, session)
+    return SuccessResponse(detail="Password reset successfully")
+
+
+@router.post(
+    "/request-email-change",
+    response_model=SuccessResponse,
+    responses=RESPONSES.get("request_email_change", {}),
+    summary=SUMMARIES.get("request_email_change", "Request email change link"),
+    description=DOCSTRINGS.get("request_email_change", ""),
+)
+async def request_email_change(
+    body: RequestEmailChangeRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+    ctx: RequestContext = Depends(get_request_context),
+    session = Depends(get_session),
+) -> SuccessResponse:
+    await auth_service.request_email_change(body, ctx, session)
+    return SuccessResponse(detail="Email change link sent successfully")
+
+
+@router.post(
+    "/confirm-email-change",
+    response_model=SingleObjectResponse[UserResponse],
+    responses=RESPONSES.get("confirm_email_change", {}),
+    summary=SUMMARIES.get("confirm_email_change", "Confirm email change"),
+    description=DOCSTRINGS.get("confirm_email_change", ""),
+)
+async def confirm_email_change(
+    body: ChangeEmailRequest,
+    request: Request,
+    response: Response,
+    session = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> SingleObjectResponse[UserResponse]:
+    data = await auth_service.confirm_email_change(body, session)
+    access_token = await auth_service.create_access_token(
+        request, response, data.id, set_cookie=True
+    )
+    refresh_token = await auth_service.create_refresh_token(
+        request, response, data.id, set_cookie=True
+    )
+    return SingleObjectResponse[UserInternal](data=data)
 
 
 @router.post(
     "/swaggerlogin",
-    responses=RESPONSES["swaggerlogin"],
-    summary=SUMMARIES["swaggerlogin"],
-    description=DOCSTRINGS["swaggerlogin"],
+    responses=RESPONSES.get("swaggerlogin", {}),
+    summary=SUMMARIES.get("swaggerlogin", "Swagger login"),
+    description=DOCSTRINGS.get("swaggerlogin", ""),
 )
 async def swaggerlogin(
     request: Request,
     response: Response,
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-    login_credentials: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+    login_credentials: OAuth2PasswordRequestForm = Depends(),
 ) -> dict[str, str]:
     login_data = LoginRequest(
         email=login_credentials.username,
         password=login_credentials.password,
     )
-    login_response: LoginResponse = await auth_service.login(login_data)
-    access_token, refresh_token = await auth_service.create_tokens_and_set_cookies(request, response, login_response.user.id)
+    login_response = await auth_service.login(login_data, session)
+    access_token = await auth_service.create_access_token(
+        request, response, login_response.user.id, set_cookie=True
+    )
+    refresh_token = await auth_service.create_refresh_token(
+        request, response, login_response.user.id, set_cookie=True
+    )
     return {"access_token": access_token, "token_type": "bearer"}

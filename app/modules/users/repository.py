@@ -13,6 +13,9 @@ class UserRepository:
     async def get_by_email(self, email: str, session=None) -> User | None:
         return await User.find_one(User.email == email.lower().strip(), session=session)
 
+    async def get_by_store_url(self, store_url: str, session=None) -> User | None:
+        return await User.find_one(User.store_url == store_url.lower().strip(), session=session)
+
     async def get_users(
         self,
         skip: int = 0,

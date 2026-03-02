@@ -3,7 +3,7 @@ from app.core.enums import OTPStatus
 from pydantic import ConfigDict
 from datetime import datetime
 
-class OTPOut(OTPBase):
+class OTPResponse(OTPBase):
     code: str
     status: OTPStatus
     expires_at: datetime

@@ -7,6 +7,7 @@ from app.core.utils.random import generate_random_code
 from .schemas import (
     OTPCreate, 
     OTPInternal,
+    SendEmailVerificationOTPRequest,
 )
 from .exceptions import (
     OTPExpiredException,
@@ -14,16 +15,17 @@ from .exceptions import (
     OTPAlreadyUsedException,
     SuspiciousOTPActivityException,
 )
-
+from app.shared.services.email_service import EmailService
 
 class OTPService:
-    def __init__(self, otp_repo: OTPRepository) -> None:
+    def __init__(self, otp_repo: OTPRepository, email_service: EmailService) -> None:
         self.otp_repo = otp_repo
+        self.email_service = email_service
 
     async def get_otp(
-        self, 
-        code: Optional[str] = None, 
-        email: Optional[str] = None, 
+        self,
+        code: Optional[str] = None,
+        email: Optional[str] = None,
         usage: Optional[OTPUsage] = None,
         session = None,
     ) -> OTPInternal:
@@ -32,14 +34,26 @@ class OTPService:
             raise InvalidOTPException()
         return OTPInternal.model_validate(otp)
 
-    async def create_otp(self, data: OTPCreate, session = None) -> OTPInternal:
+    async def create_email_verification_otp(
+        self, data: SendEmailVerificationOTPRequest, session = None
+    ) -> None:
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.email_verification_otp_expiration_minutes)
+        otp_data = OTPCreate(
+            email=data.email,
+            usage=OTPUsage.EMAIL_VERIFICATION,
+            expires_at=expires_at,
+        )
+        otp = await self._create_otp(otp_data, session=session)
+        await self.email_service.send_email_verification_otp(data.email, otp.code)
+
+
+    async def _create_otp(self, data: OTPCreate, session = None) -> OTPInternal:
         await self.otp_repo.revoke_otps(data.email, data.usage, session=session)
         code = await self.generate_otp_code(email=data.email, session=session)
         payload = data.model_dump()
         payload.update({
             "code": code, 
             "status": OTPStatus.PENDING,
-            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=settings.otp_expiration_minutes),
         })
         otp = await self.otp_repo.create_otp(payload, session=session)
         return OTPInternal.model_validate(otp)
@@ -77,3 +91,4 @@ class OTPService:
     async def revoke_otps(self, email: str, usage: Optional[OTPUsage] = None, session = None) -> None:
         await self.otp_repo.revoke_otps(email, usage, session=session)
     
+

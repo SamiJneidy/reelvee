@@ -1,7 +1,6 @@
 from datetime import datetime
 
-from beanie import PydanticObjectId
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.core.enums import UserStatus, UserStep
 
@@ -9,7 +8,13 @@ from .base import UserBase
 
 
 class UserResponse(UserBase):
-    id: PydanticObjectId
+    id: str
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def id_to_str(cls, v):
+        return str(v) if v is not None else v
+
     last_login: datetime | None = None
     status: UserStatus
     step: UserStep
@@ -19,7 +24,13 @@ class UserResponse(UserBase):
 
 
 class UserMinimal(BaseModel):
-    id: PydanticObjectId
+    id: str
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def id_to_str(cls, v):
+        return str(v) if v is not None else v
+
     email: str
     first_name: str | None = None
     last_name: str | None = None

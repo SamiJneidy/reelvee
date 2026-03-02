@@ -1,272 +1,320 @@
 from datetime import datetime, timedelta, timezone
 from fastapi import Request, Response
 
-from src.organizations.exceptions import OrganizationNotFoundException
-from .token_service import TokenService
-from src.core.enums import OTPStatus, OTPUsage, UserStatus, UserType
-from src.core.services import EmailService
-from src.users.schemas import UserInDB, UserOut
-from src.core.config import settings
-from src.users.services import UserService
-from src.organizations.services import OrganizationService
-from .otp_service import OTPService
-from ..repositories import AuthRepository
-from ..utils import hash_password, verify_password
-from ..schemas.token_schemas import (    
-    AccessToken,
-    RefreshToken,
-    SignUpCompleteToken,
-)
-from ..schemas.otp_schemas import (
-    OTPCreate,
-    OTPOut,
-)
-from ..schemas.auth_schemas import (
-    LoginRequest,
-    LoginResponse,
-    SignUp, 
-    VerifyEmailRequest,
-    VerifyEmailResponse,
-    ResetPasswordRequest,
-    ResetPasswordResponse,
-    RequestEmailVerificationOTPRequest,
-    RequestEmailVerificationOTPResponse,
-    RequestPasswordResetOTPRequest,
-    RequestPasswordResetOTPResponse,
-    VerifyPasswordResetOTPRequest,
-    VerifyPasswordResetOTPResponse,
-    SignUpCompleteRequest,
-    SignUpCompleteResponse,
-    OrganizationCreate,
-    UserInviteAcceptRequest,
-    UserCreate
-)
-from ..exceptions import (
+from app.core.config import settings
+from app.core.context import RequestContext
+from app.core.enums import OTPStatus, OTPUsage, UserStatus, TokenScope, UserStep
+from app.core.security import hash_password, verify_password
+from app.modules.auth.auth.exceptions import (
+    DuplicateKeyErrorException,
+    EmailChangeNotAllowedException,
     InvalidCredentialsException,
-    InvalidTokenException,
-    UserAlreadyExistsException,
-    UserNotActiveException, 
-    UserNotFoundException,
     PasswordResetNotAllowedException,
-    InvalidOTPException,
+    UserAlreadyCompletedException,
+)
+from app.modules.auth.auth.schemas.requests import (
+    ChangeEmailRequest,
+    LoginRequest,
+    ChangeEmailRequest,
+    RequestEmailChangeRequest,
+    RequestPasswordResetRequest,
+    SignUpCompleteRequest,
+    SignUpRequest,
+    ResetPasswordRequest,
+    VerifyEmailRequest,
+)
+from app.modules.auth.otp.exceptions import InvalidOTPException
+from app.modules.auth.otp.schemas import SendEmailVerificationOTPRequest
+from app.modules.auth.auth.schemas.responses import (
+    LoginResponse,
+    RequestEmailVerificationResponse,
+    ResetPasswordResponse,
+    SignUpCompleteResponse,  
+    VerifyEmailResponse,
+)
+from app.modules.auth.otp.service import OTPService
+from app.modules.auth.tokens.schemas import AccessToken, EmailChangeToken, PasswordResetToken, RefreshToken, SignUpCompleteToken
+from app.modules.auth.tokens.service import TokenService
+from app.modules.users.exceptions import (
+    UserAlreadyExistsException,
     UserBlockedException,
     UserDisabledException,
+    UserNotActiveException,
+    UserNotFoundException,
     UserNotVerifiedException,
 )
-from src.authorization.services.authorization_service import AuthorizationService
+from app.modules.users.schemas import UserResponse
+from app.modules.users.schemas.internal import UserInternal
+from app.modules.users.schemas.internal import UserUpdateInternal
+from app.modules.users.service import UserService
+from app.modules.users.schemas import UserCreate
+from pymongo.errors import DuplicateKeyError
+from app.modules.auth.auth.repository import AuthRepository
+from app.shared.services.email_service import EmailService
 
 class AuthService:
-    def __init__(self, 
-        auth_repo: AuthRepository, 
-        token_service: TokenService,
-        user_service: UserService, 
-        otp_service: OTPService, 
-        email_service: EmailService,
-        organization_service: OrganizationService,
-        authorization_service: AuthorizationService,
-    ) -> None:
-        self.auth_repo = auth_repo
-        self.token_service = token_service
-        self.user_service = user_service
-        self.otp_service = otp_service
-        self.email_service = email_service
-        self.organization_service = organization_service
-        self.authorization_service = authorization_service
 
-    async def sign_up(self, data: SignUp) -> UserOut:
-        """Sign up a new user using email and password. Any extra user fields can be updated from the user service in 'users' package."""
+    def __init__(
+        self,
+        auth_repo: AuthRepository,
+        user_service: UserService,
+        token_service: TokenService,
+        email_service: EmailService,
+        otp_service: OTPService,
+    ) -> None:
+        self._auth_repo = auth_repo
+        self._user_service = user_service
+        self._token_service = token_service
+        self._email_service = email_service
+        self._otp_service = otp_service
+
+    async def sign_up(self, data: SignUpRequest, session=None) -> UserResponse:
         try:
-            user = await self.user_service.get_user_by_email(data.email)
-            raise UserAlreadyExistsException()
+            existing = await self._user_service.get_user_in_db(data.email)
+            if existing:
+                raise UserAlreadyExistsException()
         except UserNotFoundException:
             pass
-        user_create = UserCreate(
-            **data.model_dump(exclude={"password", "confirm_password"}),
+
+        user_data = UserCreate(
+            email=data.email,
             password=hash_password(data.password),
-            type=UserType.CLIENT, 
-            status=UserStatus.PENDING, 
-            role_id=None, 
+            status=UserStatus.PENDING,
+            step=UserStep.ONE,
+            is_email_verified=False,
             is_completed=False,
-            is_super_admin=True,
+            is_deleted=False,
+            last_login=None,
+            invalid_login_attempts=0,
+            links=[],
         )
-        user = await self.user_service.create_user(user_create)
-        email_verification_otp_request = RequestEmailVerificationOTPRequest(email=data.email)
-        await self.request_email_verification_otp(email_verification_otp_request)
-        return user
 
+        user = await self._user_service.create_user(user_data, session)
+        otp_req = SendEmailVerificationOTPRequest(email=data.email)
+        await self._otp_service.create_email_verification_otp(otp_req, session)
+        return UserResponse.model_validate(user)
 
-    async def sign_up_complete(self, email: str, data: SignUpCompleteRequest) -> tuple[int, int, SignUpCompleteResponse]:
-        """Complete the signup process after verifying the email."""
-        # if data.vat_number[10] == "1":
-        #     tin_number = data.vat_number[:10]
-        #     data_dict.update({"organization_unit_name": tin_number})    
-        # else:
-        #     data_dict.update({"organization_unit_name": data.registration_name})
-        user = await self.user_service.get_user_by_email(email)
-        organization_create = OrganizationCreate(**data.model_dump())
-        organization, branch = await self.organization_service.create_organization_and_main_branch(organization_create)
-        super_admin_role_id = await self.authorization_service.create_default_roles(organization.id)
-        await self.authorization_service.create_user_permissions_after_signup(organization.id, user.id)
-        await self.user_service.update_by_email(
-            email, 
-            {
-                "is_completed": True, 
-                "organization_id": organization.id,
-                "default_branch_id": branch.id,
-                "role_id": super_admin_role_id,
-            }
-        )
-        return organization.id, branch.id, SignUpCompleteResponse(**organization.model_dump())
-        
-
-    async def accept_invitation(self, data: UserInviteAcceptRequest) -> UserOut:
-        user = await self.get_user_from_token(data.token)
-        if user.is_completed == True or user.status != UserStatus.PENDING:
-            raise UserAlreadyExistsException()
-        data.password = hash_password(data.password)
-        data_dict = data.model_dump(exclude={"confirm_password", "token"})
-        data_dict.update({
-            "status": UserStatus.ACTIVE, 
-            "is_completed": True
-        })
-        await self.user_service.update_by_email(user.email, data_dict)
-        return await self.user_service.get_user_by_email(user.email)
-
-
-    async def login(self, credentials: LoginRequest) -> LoginResponse:
-        db_user = await self.user_service.get_user_in_db(credentials.email)
-        if db_user.status == UserStatus.DISABLED:
-            raise UserDisabledException()
-        if db_user.status == UserStatus.BLOCKED:
-            raise UserBlockedException()
-        if db_user.status == UserStatus.PENDING:
+    async def sign_up_complete(
+        self, email: str, data: SignUpCompleteRequest, session = None
+    ) -> SignUpCompleteResponse:
+        user = await self._user_service.get_by_email(email)
+        if not user.is_email_verified:
             raise UserNotVerifiedException()
-        if db_user.status != UserStatus.ACTIVE:
-            raise UserNotActiveException()
-        if not verify_password(credentials.password, db_user.password):
-            db_user: UserInDB = await self.user_service.increment_invalid_login_attempts(credentials.email)
-            if db_user.invalid_login_attempts >= settings.MAXIMUM_NUMBER_OF_INVALID_LOGIN_ATTEMPTS:
-                await self.user_service.update_user_status(credentials.email, UserStatus.DISABLED)
+        if user.is_completed:
+            raise UserAlreadyCompletedException()
+        user_data = UserUpdateInternal(
+            **data.model_dump(),
+            status=UserStatus.ACTIVE,
+            step=UserStep.TWO,
+            is_completed=True,
+            is_deleted=False,
+            last_login=datetime.now(timezone.utc),
+            invalid_login_attempts=0,
+        )
+        try:
+            full_user = await self._user_service.update_by_email(email, user_data, session)
+        except DuplicateKeyError:
+            raise DuplicateKeyErrorException("The store link or whatsapp number is already in use")
+        return SignUpCompleteResponse(user=UserResponse.model_validate(full_user))
+
+    async def login(self, credentials: LoginRequest, session=None) -> LoginResponse:
+        """Validate credentials and return user (caller sets cookies)."""
+        
+        user = await self._user_service.get_user_in_db(credentials.email)
+        if not verify_password(credentials.password, user.password):
+            await self._user_service.increment_invalid_login_attempts(credentials.email, session)
             raise InvalidCredentialsException()
-        await self.user_service.reset_invalid_login_attempts(credentials.email)
-        await self.user_service.update_last_login(credentials.email, datetime.utcnow())
-        user = await self.user_service.get_user_by_email(db_user.email)
-        return LoginResponse(user=user)
 
+        if not user.is_email_verified:
+            email_verification_req = SendEmailVerificationOTPRequest(email=credentials.email)
+            await self.request_email_verification(email_verification_req, session)
+            return LoginResponse(user=UserResponse.model_validate(user))
 
-    async def get_me(self, email: str) -> UserOut:
-        return await self.user_service.get_user_by_email(email)
+        if not user.is_completed:
+            # ISSUE SIGN UP COMPLETE TOKEN IN THE ROUTER
+            return LoginResponse(user=UserResponse.model_validate(user))
 
-
-    async def request_email_verification_otp(self, data: RequestEmailVerificationOTPRequest) -> RequestEmailVerificationOTPResponse:
-        """Creates an OTP code for email verification and sends it to the email. This function will not work for blocked users."""
-        user = await self.user_service.get_user_by_email(data.email)
-        if user.status == UserStatus.BLOCKED:
-            raise UserBlockedException()
         if user.status == UserStatus.DISABLED:
             raise UserDisabledException()
-        expires_at = datetime.utcnow() + timedelta(minutes=settings.EMAIL_VERIFICATION_OTP_EXPIRATION_MINUTES)
-        otp_data = OTPCreate(email=data.email, usage=OTPUsage.EMAIL_VERIFICATION, expires_at=expires_at)
-        otp = await self.otp_service.create_otp(otp_data)
-        await self.email_service.send_email_verification_otp(data.email, otp.code)
-        return RequestEmailVerificationOTPResponse(email=data.email)
-    
-
-    async def request_password_reset_otp(self, data: RequestPasswordResetOTPRequest) -> RequestPasswordResetOTPResponse:
-        """Request an OTP code for password reset."""
-        user = await self.user_service.get_user_by_email(data.email)
-        if user.status == UserStatus.PENDING:
-            raise UserNotVerifiedException()
         if user.status == UserStatus.BLOCKED:
             raise UserBlockedException()
-        expires_at = datetime.utcnow() + timedelta(minutes=settings.PASSWORD_RESET_OTP_EXPIRATION_MINUTES)
-        otp_data = OTPCreate(email=data.email, usage=OTPUsage.PASSWORD_RESET, expires_at=expires_at)
-        otp = await self.otp_service.create_otp(otp_data)
-        await self.email_service.send_password_reset_otp(data.email, otp.code)
-        return RequestPasswordResetOTPResponse(email=data.email)
+        if user.status == UserStatus.PENDING:
+            raise UserNotVerifiedException()
+        if user.status != UserStatus.ACTIVE:
+            raise UserNotActiveException()
+
+        if user.invalid_login_attempts > 0:
+            await self._user_service.reset_invalid_login_attempts(credentials.email, session)
+        
+        user = await self._user_service.update_last_login(credentials.email, datetime.now(timezone.utc), session)
+        return LoginResponse(user=UserResponse.model_validate(user))
+
+    async def request_password_reset(
+        self, data: RequestPasswordResetRequest, session = None
+    ) -> None:
+        """Create and send password reset link."""
+        user = await self._user_service.get_user_in_db(data.email)
+        if not user:
+            raise UserNotFoundException()
+        payload = PasswordResetToken(
+            scope=TokenScope.RESET_PASSWORD,
+            sub=user.id,
+        )
+        reset_token = self._token_service.create_password_reset_token(payload)
+        reset_url = f"{settings.frontend_url}/reset-password?email={data.email}&token={reset_token}"
+        await self._email_service.send_password_reset_link(data.email, reset_url)
+
+    async def request_email_verification(
+        self, data: SendEmailVerificationOTPRequest, session = None
+    ) -> None:
+        await self._otp_service.create_email_verification_otp(data, session)
+    
+
+    async def reset_password(
+        self, data: ResetPasswordRequest, session = None
+    ) -> None:
+        """Reset password. Requires a password reset token."""
+        user = await self._user_service.get_user_in_db(data.email)
+        if not user:
+            raise UserNotFoundException()
+        token_payload = self._token_service.decode_token(data.token)
+        if token_payload.get("scope") != TokenScope.RESET_PASSWORD:
+            raise PasswordResetNotAllowedException("Invalid Token")
+        if token_payload.get("sub") != user.id:
+            raise PasswordResetNotAllowedException("Invalid Token. Mismatch!")
+        hashed = hash_password(data.new_password)
+        await self._user_service.update_by_email(data.email, {"password": hashed}, session)
+        await self._user_service.reset_invalid_login_attempts(data.email, session)
 
 
-    async def verify_email_verification_otp(self, data: VerifyEmailRequest) -> VerifyEmailResponse:
-        """Verifies an email verification OTP code."""
-        otp: OTPOut = await self.otp_service.get_otp_by_code(data.code)
+    async def verify_email(
+        self, data: VerifyEmailRequest, session=None
+    ) -> UserInternal:
+        otp = await self._otp_service.get_otp(email=data.email, code=data.code, usage=OTPUsage.EMAIL_VERIFICATION)
         if otp.usage != OTPUsage.EMAIL_VERIFICATION or otp.email != data.email:
             raise InvalidOTPException()
-        await self.otp_service.verify_otp(otp.code)
-        await self.user_service.update_user_status(data.email, UserStatus.ACTIVE)
-        return VerifyEmailResponse(email=data.email)    
+        user = await self._user_service.get_by_email(data.email)
+        if not user.is_email_verified:
+            user =await self._user_service.update_by_email(data.email, {"is_email_verified": True}, session)
+        await self._otp_service.verify_otp(data.code, session)
+        return UserInternal.model_validate(user)
 
+    async def request_email_change(
+        self, data: RequestEmailChangeRequest, ctx: RequestContext, session = None
+    ) -> None:
+        if not verify_password(data.password, ctx.user.password):
+            raise InvalidCredentialsException()
+        payload = EmailChangeToken(
+            scope=TokenScope.EMAIL_CHANGE,
+            sub=ctx.user.id,
+            current_email=ctx.user.email,
+            new_email=data.new_email,
+        )
+        change_token = self._token_service.create_email_change_token(payload)
+        change_url = f"{settings.frontend_url}/change-email?token={change_token}"
+        await self._email_service.send_email_change_link(data.new_email, change_url)
 
-    async def verify_password_reset_otp(self, data: VerifyPasswordResetOTPRequest) -> VerifyPasswordResetOTPResponse:
-        """Verifies a password reste OTP code."""
-        otp: OTPOut = await self.otp_service.get_otp_by_code(data.code)
-        if otp.usage != OTPUsage.PASSWORD_RESET or data.email != otp.email:
-            raise InvalidOTPException()
-        await self.otp_service.verify_otp(otp.code)
-        return VerifyPasswordResetOTPResponse(email=data.email)
+    async def confirm_email_change(
+        self, data: ChangeEmailRequest, session = None
+    ) -> UserInternal:
+        token_payload = self._token_service.decode_token(data.token)
+        token = EmailChangeToken.model_validate(token_payload)
+        if token.scope != TokenScope.EMAIL_CHANGE:
+            raise EmailChangeNotAllowedException("Invalid Token")
+        user = await self._user_service.get_by_id(token.sub)
+        if user.email != token.current_email:
+            raise EmailChangeNotAllowedException("Invalid Token. Mismatch!")
+        updated_user = await self._user_service.update_by_email(token.current_email, {"email": token.new_email}, session)
+        return UserInternal.model_validate(updated_user)
 
-
-    async def verify_email_after_signup(self, data: VerifyEmailRequest) -> LoginResponse:
-        """Verifies email account after signup. The function will create access and refresh token after finishing the verificaion successfully."""
-        await self.verify_email_verification_otp(data)
-        await self.user_service.reset_invalid_login_attempts(data.email)
-        await self.user_service.update_last_login(data.email, datetime.utcnow())
-        user = await self.user_service.get_user_by_email(data.email)
-        return LoginResponse(user=user)
-    
-
-    async def reset_password(self, data: ResetPasswordRequest) -> ResetPasswordResponse:
-        """Resets the password for a user. The user needs to have a verified OTP code that is not expired to reset his password."""
-        otp: OTPOut = await self.otp_service.get_otp_by_email_and_usage(data.email, OTPUsage.PASSWORD_RESET)
-        if not otp or otp.status != OTPStatus.VERIFIED or otp.email != data.email or await self.otp_service.otp_is_expired(otp.code):
-            raise PasswordResetNotAllowedException()
-        hashed_password = hash_password(data.password)
-        user = await self.user_service.update_by_email(data.email, update_data={"password": hashed_password})
-        await self.user_service.reset_invalid_login_attempts(data.email)
-        await self.user_service.update_user_status(data.email, UserStatus.ACTIVE)
-        return ResetPasswordResponse(email=data.email)
-
-
-    async def create_access_token_and_set_cookie(self, request: Request, response: Response, user_id: int, branch_id: int, organization_id: int) -> str:
-        """Creates an access token and sets it in the response cookies. Returns the access token."""
-        user = await self.user_service.get_user(user_id)
-        payload = AccessToken(sub=user_id, branch_id=branch_id, organization_id=organization_id)
-        access_token = self.token_service.create_access_token(payload)
-        self.token_service.set_access_token_cookie(request, response, access_token)
-        return access_token
-
-
-    async def create_refresh_token_and_set_cookie(self, request: Request, response: Response, user_id: int, branch_id: int, organization_id: int) -> str:
-        """Creates a refresh token and sets it in the response cookies. Returns the refresh token."""
-        payload = RefreshToken(sub=user_id, branch_id=branch_id, organization_id=organization_id)
-        refresh_token = self.token_service.create_refresh_token(payload)
-        self.token_service.set_refresh_token_cookie(request, response, refresh_token)
-        return refresh_token
-
-
-    async def create_sign_up_complete_token_and_set_cookie(self, request: Request, response: Response, user_id: int) -> str:
-        """Creates a refresh token and sets it in the response cookies. Returns the refresh token."""
-        payload = SignUpCompleteToken(sub=user_id)
-        token = self.token_service.create_sign_up_complete_token(payload)
-        self.token_service.set_sign_up_complete_token_cookie(request, response, token)
+    async def create_access_token(
+        self, request: Request, response: Response, user_id: str, set_cookie: bool = True
+    ) -> str:
+        """Create access token. user_id is string (Beanie id)."""
+        payload = AccessToken(sub=user_id)
+        token = self._token_service.create_access_token(payload)
+        if set_cookie:
+            await self.set_access_token_cookie(request, response, token)
         return token
 
-
-    async def create_tokens_and_set_cookies(self, request: Request, response: Response, user_id: int, branch_id: int, organization_id: int) -> tuple[str, str]:
-        """Creates access and refresh tokens and sets them in the response cookies. Returns the access and refresh tokens."""
-        access_token = await self.create_access_token_and_set_cookie(request, response, user_id, branch_id, organization_id)
-        refresh_token = await self.create_refresh_token_and_set_cookie(request, response, user_id, branch_id, organization_id)
-        return access_token, refresh_token
-
+    async def set_access_token_cookie(
+        self, request: Request, response: Response, token: str
+    ) -> None:
+        origin = request.headers.get("origin") or ""
+        is_local = origin.startswith("http://localhost") or origin.startswith("http://127.0.0.1")
+        secure_flag = settings.environment == "PRODUCTION" and not is_local
+        response.set_cookie(
+            key="access_token",
+            value=token,
+            httponly=True,
+            secure=secure_flag,
+            samesite="lax",
+            max_age=settings.access_token_expiration_minutes * 60,
+            path="/"
+        )
     
-    async def refresh(self, request: Request, response: Response, refresh_token: str) -> None:
-        """Refreshes an expired access token using a valid refresh token and returns the new access token."""
-        token_payload: dict = self.token_service.decode_token(refresh_token)
-        user_id, branch_id, organization_id = token_payload["sub"], token_payload["branch_id"], token_payload["organization_id"]
-        await self.create_access_token_and_set_cookie(request, response, user_id, branch_id, organization_id)
+    async def create_refresh_token(
+        self, request: Request, response: Response, user_id: str, set_cookie: bool = True
+    ) -> str:
+        payload = RefreshToken(sub=user_id)
+        token = self._token_service.create_refresh_token(payload)
+        if set_cookie:
+            await self.set_refresh_token_cookie(request, response, token)
+        return token
 
+    async def set_refresh_token_cookie(
+        self, request: Request, response: Response, token: str
+    ) -> None:
+        origin = request.headers.get("origin") or ""
+        is_local = origin.startswith("http://localhost") or origin.startswith("http://127.0.0.1")
+        secure_flag = settings.environment == "PRODUCTION" and not is_local
+        response.set_cookie(
+            key="refresh_token",
+            value=token,
+            httponly=True,
+            secure=secure_flag,
+            samesite="lax",
+            max_age=settings.refresh_token_expiration_days * 24 * 60 * 60,
+            path="/"
+        )
+        return token
 
-    async def get_user_from_token(self, token: str) -> UserOut:
-        """Extracts user from a valid token."""
-        token_payload: dict = self.token_service.decode_token(token)
-        user_id: int = token_payload["sub"]
-        return await self.user_service.get_user(user_id)
+    async def create_sign_up_complete_token(
+        self, request: Request, response: Response, user_id: str, set_cookie: bool = True
+    ) -> str:
+        payload = SignUpCompleteToken(sub=user_id)
+        token = self._token_service.create_sign_up_complete_token(payload)
+        if set_cookie:
+            await self.set_sign_up_complete_token_cookie(request, response, token)
+        return token
+
+    async def set_sign_up_complete_token_cookie(
+        self, request: Request, response: Response, token: str
+    ) -> None:
+        origin = request.headers.get("origin") or ""
+        is_local = origin.startswith("http://localhost") or origin.startswith("http://127.0.0.1")
+        secure_flag = settings.environment == "PRODUCTION" and not is_local
+        response.set_cookie(
+            key="sign_up_complete_token",
+            value=token,
+            httponly=True,
+            secure=secure_flag,
+            samesite="lax",
+            max_age=settings.sign_up_complete_expiration_days * 24 * 60 * 60,
+            path="/"
+        )
+        return token
+
+    async def refresh(
+        self, request: Request, response: Response, refresh_token: str, set_cookie: bool = False
+    ) -> None:
+        """Issue new access token from refresh token."""
+        payload = self._token_service.decode_token(refresh_token)
+        user_id = payload.get("sub")
+        await self.create_access_token(request, response, user_id, set_cookie)
+
+    async def get_user_from_token(self, token: str) -> UserInternal:
+        """Resolve user from JWT."""
+        payload = self._token_service.decode_token(token)
+        user_id = payload.get("sub")
+        return await self._user_service.get_by_id(user_id)

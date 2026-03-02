@@ -1,3 +1,3 @@
-from .requests import OTPCreate
-from .responses import OTPOut
+from .requests import OTPCreate, SendEmailVerificationOTPRequest
+from .responses import OTPResponse
 from .internal import OTPInternal
