@@ -2,8 +2,8 @@ from fastapi import Depends
 from typing import Annotated
 from .repository import OTPRepository
 from .service import OTPService
-from app.shared.services.email_service import EmailService
-from app.shared.dependencies import get_email_service
+from app.shared.email.service import EmailService
+from app.shared.email.dependencies import get_email_service
 
 def get_otp_repository() -> OTPRepository:
     return OTPRepository()

@@ -50,7 +50,7 @@ from app.modules.users.service import UserService
 from app.modules.users.schemas import UserCreate
 from pymongo.errors import DuplicateKeyError
 from app.modules.auth.auth.repository import AuthRepository
-from app.shared.services.email_service import EmailService
+from app.shared.email.service import EmailService
 
 class AuthService:
 

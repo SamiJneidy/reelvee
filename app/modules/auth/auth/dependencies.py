@@ -9,7 +9,7 @@ from app.modules.auth.otp.depenencies import OTPService, get_otp_service
 from app.modules.auth.tokens.dependencies import TokenService, get_token_service
 from app.modules.users.dependencies import UserService, get_user_service
 from app.modules.users.schemas import UserResponse
-from app.shared.dependencies import EmailService, get_email_service
+from app.shared.email.dependencies import EmailService, get_email_service
 
 
 def get_auth_repository() -> AuthRepository:
