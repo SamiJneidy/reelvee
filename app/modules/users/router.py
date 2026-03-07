@@ -10,7 +10,7 @@ from app.modules.auth.auth.dependencies import get_request_context
 from app.shared.schemas import SingleObjectResponse
 from .dependencies import UserService, get_user_service
 from .schemas import UserResponse, UserUpdate
-from .docs import RESPONSES, DOCSTRINGS, SUMMARIES
+from .docs import UserDocs
 
 router = APIRouter(
     prefix="/users",
@@ -24,9 +24,9 @@ router = APIRouter(
 @router.patch(
     "/me",
     response_model=SingleObjectResponse[UserResponse],
-    responses=RESPONSES.get("update_user", {}),
-    summary=SUMMARIES.get("update_user", "Update current user"),
-    description=DOCSTRINGS.get("update_user", ""),
+    summary=UserDocs.UpdateUser.summary,
+    description=UserDocs.UpdateUser.description,
+    responses=UserDocs.UpdateUser.responses,
 )
 async def update_current_user(
     body: UserUpdate,
@@ -48,9 +48,9 @@ async def update_current_user(
 @router.delete(
     "/me",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=RESPONSES.get("soft_delete_user", {}),
-    summary=SUMMARIES.get("soft_delete_user", "Soft delete current user"),
-    description=DOCSTRINGS.get("soft_delete_user", ""),
+    summary=UserDocs.SoftDeleteUser.summary,
+    description=UserDocs.SoftDeleteUser.description,
+    responses=UserDocs.SoftDeleteUser.responses,
 )
 async def delete_current_user(
     user_service: Annotated[UserService, Depends(get_user_service)],

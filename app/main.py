@@ -1,6 +1,6 @@
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.exceptions.handlers import register_exception_handlers
 from app.api.v1.routers import router as v1_router
@@ -21,6 +21,11 @@ app = FastAPI(
         "url": "https://reelvee.com",
     },
     lifespan=lifespan,
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Internal server error",
+        },
+    },
 )
 
 app.include_router(v1_router)

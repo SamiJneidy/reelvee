@@ -18,7 +18,7 @@ from .dependencies import (
     get_current_session,
     get_request_context,
 )
-from .docs import DOCSTRINGS, RESPONSES, SUMMARIES
+from .docs import AuthDocs
 from .schemas import (
     CurrentSessionResponse,
     LoginRequest,
@@ -46,9 +46,9 @@ router = APIRouter(
 @router.get(
     "/me",
     response_model=SingleObjectResponse[CurrentSessionResponse],
-    responses=RESPONSES.get("get_me", {}),
-    summary=SUMMARIES.get("get_me", "Get current session"),
-    description=DOCSTRINGS.get("get_me", ""),
+    summary=AuthDocs.GetMe.summary,
+    description=AuthDocs.GetMe.description,
+    responses=AuthDocs.GetMe.responses,
 )
 async def me(
     current_session: CurrentSessionResponse = Depends(get_current_session),
@@ -61,9 +61,9 @@ async def me(
 @router.post(
     "/signup",
     response_model=SingleObjectResponse[UserResponse],
-    responses=RESPONSES.get("signup", {}),
-    summary=SUMMARIES.get("signup", "Sign up"),
-    description=DOCSTRINGS.get("signup", ""),
+    summary=AuthDocs.Signup.summary,
+    description=AuthDocs.Signup.description,
+    responses=AuthDocs.Signup.responses,
 )
 async def signup(
     body: SignUpRequest,
@@ -77,9 +77,9 @@ async def signup(
 @router.post(
     "/signup/complete",
     response_model=SingleObjectResponse[SignUpCompleteResponse],
-    responses=RESPONSES.get("sign_up_complete", {}),
-    summary=SUMMARIES.get("sign_up_complete", "Complete sign up"),
-    description=DOCSTRINGS.get("sign_up_complete", ""),
+    summary=AuthDocs.SignUpComplete.summary,
+    description=AuthDocs.SignUpComplete.description,
+    responses=AuthDocs.SignUpComplete.responses,
 )
 async def sign_up_complete(
     request: Request,
@@ -102,9 +102,9 @@ async def sign_up_complete(
 @router.post(
     "/login",
     response_model=SingleObjectResponse[LoginResponse],
-    responses=RESPONSES.get("login", {}),
-    summary=SUMMARIES.get("login", "Login"),
-    description=DOCSTRINGS.get("login", ""),
+    summary=AuthDocs.Login.summary,
+    description=AuthDocs.Login.description,
+    responses=AuthDocs.Login.responses,
 )
 async def login(
     request: Request,
@@ -136,10 +136,10 @@ async def login(
 
 @router.post(
     "/refresh",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses=RESPONSES.get("refresh", {}),
-    summary=SUMMARIES.get("refresh", "Refresh access token"),
-    description=DOCSTRINGS.get("refresh", ""),
+    response_model=SuccessResponse,
+    summary=AuthDocs.Refresh.summary,
+    description=AuthDocs.Refresh.description,
+    responses=AuthDocs.Refresh.responses,
 )
 async def refresh(
     request: Request,
@@ -148,14 +148,14 @@ async def refresh(
 ) -> None:
     refresh_token = request.cookies.get("refresh_token")
     await auth_service.refresh(request, response, refresh_token, set_cookie=True)
+    return SuccessResponse(detail="Access token refreshed successfully")
 
 
 @router.post(
     "/logout",
     response_model=SuccessResponse,
-    responses=RESPONSES.get("logout", {}),
-    summary=SUMMARIES.get("logout", "Logout"),
-    description=DOCSTRINGS.get("logout", ""),
+    summary=AuthDocs.Logout.summary,
+    description=AuthDocs.Logout.description,
 )
 async def logout(
     response: Response,
@@ -168,9 +168,9 @@ async def logout(
 @router.post(
     "/request-email-verification",
     response_model=SuccessResponse,
-    responses=RESPONSES.get("request_email_verification_otp", {}),
-    summary=SUMMARIES.get("request_email_verification_otp", "Request email verification OTP"),
-    description=DOCSTRINGS.get("request_email_verification_otp", ""),
+    summary=AuthDocs.RequestEmailVerification.summary,
+    description=AuthDocs.RequestEmailVerification.description,
+    responses=AuthDocs.RequestEmailVerification.responses,
 )
 async def request_email_verification(
     body: SendEmailVerificationOTPRequest,
@@ -183,9 +183,9 @@ async def request_email_verification(
 @router.post(
     "/verify-email",
     response_model=SingleObjectResponse[UserResponse],
-    responses=RESPONSES.get("verify_email_otp", {}),
-    summary=SUMMARIES.get("verify_email_otp", "Verify email OTP"),
-    description=DOCSTRINGS.get("verify_email_otp", ""),
+    summary=AuthDocs.VerifyEmail.summary,
+    description=AuthDocs.VerifyEmail.description,
+    responses=AuthDocs.VerifyEmail.responses,
 )
 async def verify_email(
     body: VerifyEmailRequest,
@@ -205,9 +205,9 @@ async def verify_email(
 @router.post(
     "/request-password-reset",
     response_model=SuccessResponse,
-    responses=RESPONSES.get("request_password_reset_otp", {}),
-    summary=SUMMARIES.get("request_password_reset_otp", "Request password reset link"),
-    description=DOCSTRINGS.get("request_password_reset_otp", ""),
+    summary=AuthDocs.RequestPasswordReset.summary,
+    description=AuthDocs.RequestPasswordReset.description,
+    responses=AuthDocs.RequestPasswordReset.responses,
 )
 async def request_password_reset(
     body: RequestPasswordResetRequest,
@@ -221,9 +221,9 @@ async def request_password_reset(
     "/reset-password",
     status_code=status.HTTP_200_OK,
     response_model=SuccessResponse,
-    responses=RESPONSES.get("reset_password", {}),
-    summary=SUMMARIES.get("reset_password", "Reset password"),
-    description=DOCSTRINGS.get("reset_password", ""),
+    summary=AuthDocs.ResetPassword.summary,
+    description=AuthDocs.ResetPassword.description,
+    responses=AuthDocs.ResetPassword.responses,
 )
 async def reset_password(
     body: ResetPasswordRequest,
@@ -237,9 +237,9 @@ async def reset_password(
 @router.post(
     "/request-email-change",
     response_model=SuccessResponse,
-    responses=RESPONSES.get("request_email_change", {}),
-    summary=SUMMARIES.get("request_email_change", "Request email change link"),
-    description=DOCSTRINGS.get("request_email_change", ""),
+    summary=AuthDocs.RequestEmailChange.summary,
+    description=AuthDocs.RequestEmailChange.description,
+    responses=AuthDocs.RequestEmailChange.responses,
 )
 async def request_email_change(
     body: RequestEmailChangeRequest,
@@ -254,9 +254,9 @@ async def request_email_change(
 @router.post(
     "/confirm-email-change",
     response_model=SingleObjectResponse[UserResponse],
-    responses=RESPONSES.get("confirm_email_change", {}),
-    summary=SUMMARIES.get("confirm_email_change", "Confirm email change"),
-    description=DOCSTRINGS.get("confirm_email_change", ""),
+    summary=AuthDocs.ConfirmEmailChange.summary,
+    description=AuthDocs.ConfirmEmailChange.description,
+    responses=AuthDocs.ConfirmEmailChange.responses,
 )
 async def confirm_email_change(
     body: ChangeEmailRequest,
@@ -277,9 +277,9 @@ async def confirm_email_change(
 
 @router.post(
     "/swaggerlogin",
-    responses=RESPONSES.get("swaggerlogin", {}),
-    summary=SUMMARIES.get("swaggerlogin", "Swagger login"),
-    description=DOCSTRINGS.get("swaggerlogin", ""),
+    summary=AuthDocs.SwaggerLogin.summary,
+    description=AuthDocs.SwaggerLogin.description,
+    responses=AuthDocs.SwaggerLogin.responses,
 )
 async def swaggerlogin(
     request: Request,
