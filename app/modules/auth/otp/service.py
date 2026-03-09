@@ -3,7 +3,7 @@ from typing import Optional
 from app.core.enums import OTPStatus, OTPUsage
 from app.core.config import settings
 from .repository import OTPRepository
-from app.core.utils.random import generate_random_code
+from app.shared.utils.random_helper import generate_random_code
 from .schemas import (
     OTPCreate, 
     OTPInternal,

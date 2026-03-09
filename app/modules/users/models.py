@@ -5,8 +5,9 @@ from beanie import Document, Indexed
 
 from app.core.enums import UserPlan, UserStatus, UserStep
 from app.shared.schemas.common import Link
+from app.shared.models.mixins import BaseDocument
 
-class User(Document):
+class User(BaseDocument):
     """Single user table. Sign up with email + password only; rest filled in onboarding."""
     email: Indexed(str, unique=True)
     password: str

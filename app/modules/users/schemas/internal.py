@@ -3,18 +3,12 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.core.enums import UserPlan, UserStatus, UserStep
-from app.shared.schemas.common import Link
+from app.shared.schemas.common import Link, BaseModelWithId
 
 from .base import UserBase
 
 
-class UserInternal(UserBase):
-    id: str
-
-    @field_validator("id", mode="before")
-    def id_to_str(cls, v):
-        return str(v) if v is not None else v
-
+class UserInternal(UserBase, BaseModelWithId):
     email: str
     last_login: datetime | None = None
     invalid_login_attempts: int = 0

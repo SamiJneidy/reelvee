@@ -1,15 +1,14 @@
-from typing import Generic, TypeVar
-
 from fastapi import status
 from pydantic import BaseModel, Field
+from typing import Generic, TypeVar
 
 T = TypeVar("T")
 
+class SingleResponse(BaseModel, Generic[T]):
+    data: T = Field(..., description="This may be any schema value")
 
-class SingleObjectResponse(BaseModel, Generic[T]):
-    """Wrapper for a single resource in JSON responses."""
-    data: T
-
+class ListResponse(BaseModel, Generic[T]):
+    data: list[T] = Field(..., description="This may be any schema value")
 
 class SuccessResponse(BaseModel):
     detail: str = Field(
@@ -22,7 +21,6 @@ class SuccessResponse(BaseModel):
         description="The status code of the success response", 
         example=status.HTTP_200_OK
     )
-
 
 class ErrorResponse(BaseModel):
     detail: str = Field(

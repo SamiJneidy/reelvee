@@ -7,7 +7,7 @@ from typing import Annotated
 from app.core.context import RequestContext
 from app.core.database import get_session
 from app.modules.auth.auth.dependencies import get_request_context
-from app.shared.schemas import SingleObjectResponse
+from app.shared.schemas import SingleResponse
 from .dependencies import UserService, get_user_service
 from .schemas import UserResponse, UserUpdate
 from .docs import UserDocs
@@ -23,7 +23,7 @@ router = APIRouter(
 # ---------------------------------------------------------------------
 @router.patch(
     "/me",
-    response_model=SingleObjectResponse[UserResponse],
+    response_model=SingleResponse[UserResponse],
     summary=UserDocs.UpdateUser.summary,
     description=UserDocs.UpdateUser.description,
     responses=UserDocs.UpdateUser.responses,
@@ -33,13 +33,13 @@ async def update_current_user(
     user_service: UserService = Depends(get_user_service),
     ctx: RequestContext = Depends(get_request_context),
     session = Depends(get_session),
-) -> SingleObjectResponse[UserResponse]:
+) -> SingleResponse[UserResponse]:
     data = await user_service.update_by_email(
         ctx.user.email,
         body.model_dump(exclude_none=True,),
         session=session,
     )
-    return SingleObjectResponse[UserResponse](data=UserResponse.model_validate(data))
+    return SingleResponse[UserResponse](data=UserResponse.model_validate(data))
 
 
 # ---------------------------------------------------------------------

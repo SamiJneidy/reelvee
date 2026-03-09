@@ -8,7 +8,7 @@ from app.core.context import RequestContext
 from app.core.database import get_session
 from app.modules.auth.auth.schemas.requests import ChangeEmailRequest, ChangeEmailRequest, RequestEmailChangeRequest, SignUpRequest
 from app.modules.auth.otp.schemas.requests import SendEmailVerificationOTPRequest
-from app.shared.schemas import SingleObjectResponse
+from app.shared.schemas import SingleResponse
 from app.modules.users.schemas import UserResponse
 from app.shared.schemas.responses import SuccessResponse
 
@@ -45,22 +45,22 @@ router = APIRouter(
 # ---------------------------------------------------------------------
 @router.get(
     "/me",
-    response_model=SingleObjectResponse[CurrentSessionResponse],
+    response_model=SingleResponse[CurrentSessionResponse],
     summary=AuthDocs.GetMe.summary,
     description=AuthDocs.GetMe.description,
     responses=AuthDocs.GetMe.responses,
 )
 async def me(
     current_session: CurrentSessionResponse = Depends(get_current_session),
-) -> SingleObjectResponse[CurrentSessionResponse]:
-    return SingleObjectResponse[CurrentSessionResponse](data=current_session)
+) -> SingleResponse[CurrentSessionResponse]:
+    return SingleResponse[CurrentSessionResponse](data=current_session)
 
 # ---------------------------------------------------------------------
 # POST
 # ---------------------------------------------------------------------
 @router.post(
     "/signup",
-    response_model=SingleObjectResponse[UserResponse],
+    response_model=SingleResponse[UserResponse],
     summary=AuthDocs.Signup.summary,
     description=AuthDocs.Signup.description,
     responses=AuthDocs.Signup.responses,
@@ -69,14 +69,14 @@ async def signup(
     body: SignUpRequest,
     session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
-) -> SingleObjectResponse[UserResponse]:
+) -> SingleResponse[UserResponse]:
     data = await auth_service.sign_up(body, session)
-    return SingleObjectResponse[UserResponse](data=data)
+    return SingleResponse[UserResponse](data=data)
 
 
 @router.post(
     "/signup/complete",
-    response_model=SingleObjectResponse[SignUpCompleteResponse],
+    response_model=SingleResponse[SignUpCompleteResponse],
     summary=AuthDocs.SignUpComplete.summary,
     description=AuthDocs.SignUpComplete.description,
     responses=AuthDocs.SignUpComplete.responses,
@@ -88,7 +88,7 @@ async def sign_up_complete(
     session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
     current_user: UserResponse = Depends(get_user_from_sign_up_complete_token),
-) -> SingleObjectResponse[SignUpCompleteResponse]:
+) -> SingleResponse[SignUpCompleteResponse]:
     data = await auth_service.sign_up_complete(current_user.email, body, session)
     response.delete_cookie("sign_up_complete_token")
     access_token = await auth_service.create_access_token(
@@ -97,11 +97,11 @@ async def sign_up_complete(
     refresh_token = await auth_service.create_refresh_token(
         request, response, data.user.id, set_cookie=True
     )
-    return SingleObjectResponse[SignUpCompleteResponse](data=data)
+    return SingleResponse[SignUpCompleteResponse](data=data)
 
 @router.post(
     "/login",
-    response_model=SingleObjectResponse[LoginResponse],
+    response_model=SingleResponse[LoginResponse],
     summary=AuthDocs.Login.summary,
     description=AuthDocs.Login.description,
     responses=AuthDocs.Login.responses,
@@ -112,18 +112,18 @@ async def login(
     body: LoginRequest,
     session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
-) -> SingleObjectResponse[LoginResponse]:
+) -> SingleResponse[LoginResponse]:
     
     data = await auth_service.login(body, session)
     
     if not data.user.is_email_verified:
-        return SingleObjectResponse[LoginResponse](data=data)
+        return SingleResponse[LoginResponse](data=data)
     
     if not data.user.is_completed:
         sign_up_complete_token = await auth_service.create_sign_up_complete_token(
             request, response, data.user.id, set_cookie=True
         )
-        return SingleObjectResponse[LoginResponse](data=data)
+        return SingleResponse[LoginResponse](data=data)
     
     access_token = await auth_service.create_access_token(
         request, response, data.user.id, set_cookie=True
@@ -131,7 +131,7 @@ async def login(
     refresh_token = await auth_service.create_refresh_token(
         request, response, data.user.id, set_cookie=True
     )
-    return SingleObjectResponse[LoginResponse](data=data)
+    return SingleResponse[LoginResponse](data=data)
 
 
 @router.post(
@@ -182,7 +182,7 @@ async def request_email_verification(
 
 @router.post(
     "/verify-email",
-    response_model=SingleObjectResponse[UserResponse],
+    response_model=SingleResponse[UserResponse],
     summary=AuthDocs.VerifyEmail.summary,
     description=AuthDocs.VerifyEmail.description,
     responses=AuthDocs.VerifyEmail.responses,
@@ -193,13 +193,13 @@ async def verify_email(
     response: Response,
     session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
-) -> SingleObjectResponse[UserResponse]:
+) -> SingleResponse[UserResponse]:
     user = await auth_service.verify_email(body, session)
     if not user.is_completed:
         sign_up_complete_token = await auth_service.create_sign_up_complete_token(
             request, response, user.id, set_cookie=True
         )
-    return SingleObjectResponse[UserResponse](data=user)
+    return SingleResponse[UserResponse](data=user)
 
 
 @router.post(
@@ -253,7 +253,7 @@ async def request_email_change(
 
 @router.post(
     "/confirm-email-change",
-    response_model=SingleObjectResponse[UserResponse],
+    response_model=SingleResponse[UserResponse],
     summary=AuthDocs.ConfirmEmailChange.summary,
     description=AuthDocs.ConfirmEmailChange.description,
     responses=AuthDocs.ConfirmEmailChange.responses,
@@ -264,7 +264,7 @@ async def confirm_email_change(
     response: Response,
     session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
-) -> SingleObjectResponse[UserResponse]:
+) -> SingleResponse[UserResponse]:
     data = await auth_service.confirm_email_change(body, session)
     access_token = await auth_service.create_access_token(
         request, response, data.id, set_cookie=True
@@ -272,7 +272,7 @@ async def confirm_email_change(
     refresh_token = await auth_service.create_refresh_token(
         request, response, data.id, set_cookie=True
     )
-    return SingleObjectResponse[UserInternal](data=data)
+    return SingleResponse[UserInternal](data=data)
 
 
 @router.post(

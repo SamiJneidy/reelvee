@@ -1,14 +1,50 @@
+import re
 from datetime import datetime
 from typing import Any
 
+from beanie import PydanticObjectId
+
 from app.core.enums import UserStatus
 from app.modules.users.models import User
-import re
+
 
 class UserRepository:
+    def _build_filters(self, filters: dict[str, Any] | None = None) -> list:
+        filters = filters or {}
+        filters_list = []
+        if filters.get("status"):
+            filters_list.append(User.status == filters["status"])
+        if filters.get("first_name"):
+            filters_list.append(
+                {"first_name": {"$regex": re.escape(filters["first_name"]), "$options": "i"}}
+            )
+        if filters.get("last_name"):
+            filters_list.append(
+                {"last_name": {"$regex": re.escape(filters["last_name"]), "$options": "i"}}
+            )
+        if filters.get("country_code"):
+            filters_list.append(
+                {"country_code": {"$regex": re.escape(filters["country_code"]), "$options": "i"}}
+            )
+        if filters.get("email"):
+            filters_list.append(
+                {"email": {"$regex": re.escape(filters["email"]), "$options": "i"}}
+            )
+        if filters.get("whatsapp_number"):
+            filters_list.append(
+                {"whatsapp_number": {"$regex": re.escape(filters["whatsapp_number"]), "$options": "i"}}
+            )
+        if filters.get("business_name"):
+            filters_list.append(
+                {"business_name": {"$regex": re.escape(filters["business_name"]), "$options": "i"}}
+            )
+        if filters.get("store_url"):
+            filters_list.append(
+                {"store_url": {"$regex": re.escape(filters["store_url"]), "$options": "i"}}
+            )
 
     async def get_by_id(self, id: str, session=None) -> User | None:
-        return await User.get(id, session=session)
+        return await User.get(PydanticObjectId(id), session=session)
 
     async def get_by_email(self, email: str, session=None) -> User | None:
         return await User.find_one(User.email == email.lower().strip(), session=session)
@@ -20,28 +56,11 @@ class UserRepository:
         self,
         skip: int = 0,
         limit: int = 20,
-        filters: dict = {},
+        filters: dict[str, Any] | None = None,
         session=None,
     ) -> tuple[int, list[User]]:
-        filters_list = []
-        if filters is not None:
-            if filters.get("first_name"):
-                filters_list.append(User.first_name.regex == re.compile(filters["first_name"], re.IGNORECASE))
-            if filters.get("last_name"):
-                filters_list.append(User.last_name.regex == re.compile(filters["last_name"], re.IGNORECASE))
-            if filters.get("country_code"):
-                filters_list.append(User.country_code.regex == re.compile(filters["country_code"], re.IGNORECASE))
-            if filters.get("email"):
-                filters_list.append(User.email.regex == re.compile(filters["email"], re.IGNORECASE))
-            if filters.get("whatsapp_number"):
-                filters_list.append(User.whatsapp_number.regex == re.compile(filters["whatsapp_number"], re.IGNORECASE))
-            if filters.get("business_name"):
-                filters_list.append(User.business_name.regex == re.compile(filters["business_name"], re.IGNORECASE))
-            if filters.get("store_url"):
-                filters_list.append(User.store_url.regex == re.compile(filters["store_url"], re.IGNORECASE))
-            if filters.get("status"):
-                filters_list.append(User.status == filters["status"])
-        query = User.find(session=session)
+        filters_list = self._build_filters(filters)
+        query = User.find(*filters_list, session=session)
         total = await query.count()
         users = await query.skip(skip).limit(limit).to_list()
         return total, users
@@ -54,7 +73,7 @@ class UserRepository:
         return user
 
     async def update_by_id(self, id: str, data: dict[str, Any], session=None) -> User | None:
-        user = await User.get(id, session=session)
+        user = await User.get(PydanticObjectId(id), session=session)
         if user is None:
             return None
         for key, value in data.items():

@@ -53,6 +53,12 @@ class UserService:
         user = await self._get_or_raise(email=email)
         return UserInternal.model_validate(user)
 
+    async def get_by_store_url(self, store_url: str) -> UserInternal:
+        user = await self._repo.get_by_store_url(store_url)
+        if not user:
+            raise UserNotFoundException()
+        return UserInternal.model_validate(user)
+
     async def get_users(
         self,
         skip: int = 0,
