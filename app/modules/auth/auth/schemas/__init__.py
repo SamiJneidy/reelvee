@@ -2,11 +2,9 @@ from .requests import (
     LoginRequest,
     ResetPasswordRequest,
     RequestPasswordResetRequest,
-    SignUpCompleteRequest,
     SignUpRequest,
     VerifyEmailRequest,
     RequestPasswordResetRequest,
-    SignUpCompleteRequest,
     SignUpRequest,
     VerifyEmailRequest,
 )
@@ -16,5 +14,4 @@ from .responses import (
     RequestEmailVerificationResponse,
     ResetPasswordResponse,
     VerifyEmailResponse,
-    SignUpCompleteResponse
 )

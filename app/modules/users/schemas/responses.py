@@ -30,3 +30,7 @@ class UserMinimal(BaseModel):
     last_name: str | None = None
     status: UserStatus
     model_config = ConfigDict(from_attributes=True)
+
+
+class SignUpCompleteResponse(BaseModel):
+    user: UserResponse

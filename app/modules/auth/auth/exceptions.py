@@ -27,18 +27,3 @@ class PasswordsDontMatchException(BaseAppException):
 class InvalidCredentialsException(BaseAppException):
     detail = "Invalid credentials"
     status_code = status.HTTP_401_UNAUTHORIZED
-
-
-class UserAlreadyCompletedException(BaseAppException):
-    detail = "User already completed"
-    status_code = status.HTTP_400_BAD_REQUEST
-
-
-class DuplicateKeyErrorException(BaseAppException):
-    detail = "Duplicate key error"
-    status_code = status.HTTP_400_BAD_REQUEST
-
-
-class EmailChangeNotAllowedException(BaseAppException):
-    detail = "Email change not allowed"
-    status_code = status.HTTP_401_UNAUTHORIZED

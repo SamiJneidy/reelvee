@@ -6,11 +6,8 @@ from fastapi import status
 from app.shared.docs import error_response
 
 from app.modules.auth.auth.exceptions import (
-    DuplicateKeyErrorException,
-    EmailChangeNotAllowedException,
     InvalidCredentialsException,
     PasswordResetNotAllowedException,
-    UserAlreadyCompletedException,
 )
 from app.modules.auth.otp.exceptions import (
     InvalidOTPException,
@@ -49,22 +46,6 @@ class AuthDocs:
             status.HTTP_409_CONFLICT: error_response(UserAlreadyExistsException),
         }
 
-    class SignUpComplete:
-        summary = "Complete sign up"
-        description = (
-            "Completes the user profile after email verification. "
-            "Requires a valid sign_up_complete_token cookie. "
-            "Sets access_token and refresh_token cookies on success."
-        )
-        responses: dict[int | str, dict[str, Any]] = {
-            status.HTTP_400_BAD_REQUEST: error_response(
-                UserAlreadyCompletedException,
-                DuplicateKeyErrorException,
-                description="User already completed or duplicate store link / whatsapp number",
-            ),
-            status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
-            status.HTTP_403_FORBIDDEN: error_response(UserNotVerifiedException),
-        }
 
     class Login:
         summary = "Authenticate with email and password"
@@ -140,28 +121,6 @@ class AuthDocs:
         )
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(PasswordResetNotAllowedException),
-            status.HTTP_404_NOT_FOUND: error_response(UserNotFoundException),
-        }
-
-    class RequestEmailChange:
-        summary = "Request email change link"
-        description = (
-            "Sends an email change confirmation link to the new email "
-            "address. Requires the current password for verification."
-        )
-        responses: dict[int | str, dict[str, Any]] = {
-            status.HTTP_401_UNAUTHORIZED: error_response(InvalidCredentialsException),
-        }
-
-    class ConfirmEmailChange:
-        summary = "Confirm email change"
-        description = (
-            "Confirms the email change using the token received via "
-            "email. Reissues access_token and refresh_token cookies "
-            "for the updated account."
-        )
-        responses: dict[int | str, dict[str, Any]] = {
-            status.HTTP_401_UNAUTHORIZED: error_response(EmailChangeNotAllowedException),
             status.HTTP_404_NOT_FOUND: error_response(UserNotFoundException),
         }
 

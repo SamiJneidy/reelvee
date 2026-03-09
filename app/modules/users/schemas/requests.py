@@ -37,3 +37,22 @@ class UserUpdate(BaseModel):
     business_description: str | None = None
     store_url: str | None = None
     links: list[Link] | None = None
+
+class SignUpCompleteRequest(BaseModel):
+    first_name: str
+    last_name: str
+    country_code: str
+    whatsapp_number: str
+    address: str | None = None
+    logo: str | None = None
+    business_name: str | None = None
+    business_description: str | None = None
+    store_url: str
+    links: list[Link] = Field([], example=[{"name": "instagram", "url": "https://www.instagram.com/your_username"}])
+
+class RequestEmailChangeRequest(BaseModel):
+    new_email: EmailStr = Field(..., example="newuser@example.com")
+    password: str = Field(..., example="abcABC123")
+
+class ChangeEmailRequest(BaseModel):
+    token: str = Field(...)

@@ -41,3 +41,8 @@ class NotNullConstraintViolationException(BaseAppException):
 class CheckConstraintViolationException(BaseAppException):
     detail = "Check constraint violation: A column value failed a custom validation rule."
     status_code = status.HTTP_400_BAD_REQUEST
+
+
+class DuplicateKeyErrorException(BaseAppException):
+    detail = "Duplicate key error"
+    status_code = status.HTTP_400_BAD_REQUEST

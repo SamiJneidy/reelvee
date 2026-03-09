@@ -53,3 +53,13 @@ class InvitationNotAllowedException(BaseAppException):
 class InvalidStoreLinkException(BaseAppException):
     detail = "The store link is invalid or not available"
     status_code = status.HTTP_400_BAD_REQUEST
+
+
+class EmailChangeNotAllowedException(BaseAppException):
+    detail = "Email change not allowed"
+    status_code = status.HTTP_401_UNAUTHORIZED
+
+
+class UserAlreadyCompletedException(BaseAppException):
+    detail = "User already completed"
+    status_code = status.HTTP_400_BAD_REQUEST

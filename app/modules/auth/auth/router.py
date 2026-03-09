@@ -1,12 +1,11 @@
-from app.modules.users.schemas.internal import UserInternal
 from app.modules.users.schemas.responses import UserResponse
-from app.modules.auth.auth.schemas.responses import CurrentSessionResponse, LoginResponse, SignUpCompleteResponse, VerifyEmailResponse
+from app.modules.auth.auth.schemas.responses import CurrentSessionResponse, LoginResponse, VerifyEmailResponse
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.context import RequestContext
 from app.core.database import get_session
-from app.modules.auth.auth.schemas.requests import ChangeEmailRequest, ChangeEmailRequest, RequestEmailChangeRequest, SignUpRequest
+from app.modules.auth.auth.schemas.requests import SignUpRequest
 from app.modules.auth.otp.schemas.requests import SendEmailVerificationOTPRequest
 from app.shared.schemas import SingleResponse
 from app.modules.users.schemas import UserResponse
@@ -27,8 +26,6 @@ from .schemas import (
     RequestPasswordResetRequest,
     ResetPasswordRequest,
     ResetPasswordResponse,
-    SignUpCompleteRequest,
-    SignUpCompleteResponse,
     VerifyEmailRequest,
     VerifyEmailResponse,
 )
@@ -73,31 +70,6 @@ async def signup(
     data = await auth_service.sign_up(body, session)
     return SingleResponse[UserResponse](data=data)
 
-
-@router.post(
-    "/signup/complete",
-    response_model=SingleResponse[SignUpCompleteResponse],
-    summary=AuthDocs.SignUpComplete.summary,
-    description=AuthDocs.SignUpComplete.description,
-    responses=AuthDocs.SignUpComplete.responses,
-)
-async def sign_up_complete(
-    request: Request,
-    response: Response,
-    body: SignUpCompleteRequest,
-    session = Depends(get_session),
-    auth_service: AuthService = Depends(get_auth_service),
-    current_user: UserResponse = Depends(get_user_from_sign_up_complete_token),
-) -> SingleResponse[SignUpCompleteResponse]:
-    data = await auth_service.sign_up_complete(current_user.email, body, session)
-    response.delete_cookie("sign_up_complete_token")
-    access_token = await auth_service.create_access_token(
-        request, response, current_user.id, set_cookie=True
-    )
-    refresh_token = await auth_service.create_refresh_token(
-        request, response, data.user.id, set_cookie=True
-    )
-    return SingleResponse[SignUpCompleteResponse](data=data)
 
 @router.post(
     "/login",
@@ -232,47 +204,6 @@ async def reset_password(
 ) -> SuccessResponse:
     await auth_service.reset_password(body, session)
     return SuccessResponse(detail="Password reset successfully")
-
-
-@router.post(
-    "/request-email-change",
-    response_model=SuccessResponse,
-    summary=AuthDocs.RequestEmailChange.summary,
-    description=AuthDocs.RequestEmailChange.description,
-    responses=AuthDocs.RequestEmailChange.responses,
-)
-async def request_email_change(
-    body: RequestEmailChangeRequest,
-    auth_service: AuthService = Depends(get_auth_service),
-    ctx: RequestContext = Depends(get_request_context),
-    session = Depends(get_session),
-) -> SuccessResponse:
-    await auth_service.request_email_change(body, ctx, session)
-    return SuccessResponse(detail="Email change link sent successfully")
-
-
-@router.post(
-    "/confirm-email-change",
-    response_model=SingleResponse[UserResponse],
-    summary=AuthDocs.ConfirmEmailChange.summary,
-    description=AuthDocs.ConfirmEmailChange.description,
-    responses=AuthDocs.ConfirmEmailChange.responses,
-)
-async def confirm_email_change(
-    body: ChangeEmailRequest,
-    request: Request,
-    response: Response,
-    session = Depends(get_session),
-    auth_service: AuthService = Depends(get_auth_service),
-) -> SingleResponse[UserResponse]:
-    data = await auth_service.confirm_email_change(body, session)
-    access_token = await auth_service.create_access_token(
-        request, response, data.id, set_cookie=True
-    )
-    refresh_token = await auth_service.create_refresh_token(
-        request, response, data.id, set_cookie=True
-    )
-    return SingleResponse[UserInternal](data=data)
 
 
 @router.post(

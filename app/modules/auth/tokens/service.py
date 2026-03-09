@@ -12,7 +12,9 @@ class TokenService:
         self.token_repo = token_repo
 
     def _create_token(self, payload: dict) -> str:
-        return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+        token = jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+        print(token)
+        return token
 
     def decode_token(self, token: str) -> dict:  
         """Decode a token and return the payload. It will raise an exception if the token is invalid."""

@@ -1,24 +1,16 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from fastapi import Request, Response
 
 from app.core.config import settings
-from app.core.context import RequestContext
-from app.core.enums import OTPStatus, OTPUsage, UserStatus, TokenScope, UserStep
+from app.core.enums import OTPUsage, UserStatus, TokenScope, UserStep
 from app.core.security import hash_password, verify_password
 from app.modules.auth.auth.exceptions import (
-    DuplicateKeyErrorException,
-    EmailChangeNotAllowedException,
     InvalidCredentialsException,
     PasswordResetNotAllowedException,
-    UserAlreadyCompletedException,
 )
 from app.modules.auth.auth.schemas.requests import (
-    ChangeEmailRequest,
     LoginRequest,
-    ChangeEmailRequest,
-    RequestEmailChangeRequest,
     RequestPasswordResetRequest,
-    SignUpCompleteRequest,
     SignUpRequest,
     ResetPasswordRequest,
     VerifyEmailRequest,
@@ -27,13 +19,9 @@ from app.modules.auth.otp.exceptions import InvalidOTPException
 from app.modules.auth.otp.schemas import SendEmailVerificationOTPRequest
 from app.modules.auth.auth.schemas.responses import (
     LoginResponse,
-    RequestEmailVerificationResponse,
-    ResetPasswordResponse,
-    SignUpCompleteResponse,  
-    VerifyEmailResponse,
 )
 from app.modules.auth.otp.service import OTPService
-from app.modules.auth.tokens.schemas import AccessToken, EmailChangeToken, PasswordResetToken, RefreshToken, SignUpCompleteToken
+from app.modules.auth.tokens.schemas import AccessToken, PasswordResetToken, RefreshToken, SignUpCompleteToken
 from app.modules.auth.tokens.service import TokenService
 from app.modules.users.exceptions import (
     UserAlreadyExistsException,
@@ -45,10 +33,8 @@ from app.modules.users.exceptions import (
 )
 from app.modules.users.schemas import UserResponse
 from app.modules.users.schemas.internal import UserInternal
-from app.modules.users.schemas.internal import UserUpdateInternal
 from app.modules.users.service import UserService
 from app.modules.users.schemas import UserCreate
-from pymongo.errors import DuplicateKeyError
 from app.modules.auth.auth.repository import AuthRepository
 from app.shared.email.service import EmailService
 
@@ -70,7 +56,7 @@ class AuthService:
 
     async def sign_up(self, data: SignUpRequest, session=None) -> UserResponse:
         try:
-            existing = await self._user_service.get_user_in_db(data.email)
+            existing = await self._user_service.get_by_email_in_db(data.email)
             if existing:
                 raise UserAlreadyExistsException()
         except UserNotFoundException:
@@ -94,33 +80,10 @@ class AuthService:
         await self._otp_service.create_email_verification_otp(otp_req, session)
         return UserResponse.model_validate(user)
 
-    async def sign_up_complete(
-        self, email: str, data: SignUpCompleteRequest, session = None
-    ) -> SignUpCompleteResponse:
-        user = await self._user_service.get_by_email(email)
-        if not user.is_email_verified:
-            raise UserNotVerifiedException()
-        if user.is_completed:
-            raise UserAlreadyCompletedException()
-        user_data = UserUpdateInternal(
-            **data.model_dump(),
-            status=UserStatus.ACTIVE,
-            step=UserStep.TWO,
-            is_completed=True,
-            is_deleted=False,
-            last_login=datetime.now(timezone.utc),
-            invalid_login_attempts=0,
-        )
-        try:
-            full_user = await self._user_service.update_by_email(email, user_data, session)
-        except DuplicateKeyError:
-            raise DuplicateKeyErrorException("The store link or whatsapp number is already in use")
-        return SignUpCompleteResponse(user=UserResponse.model_validate(full_user))
-
     async def login(self, credentials: LoginRequest, session=None) -> LoginResponse:
         """Validate credentials and return user (caller sets cookies)."""
         
-        user = await self._user_service.get_user_in_db(credentials.email)
+        user = await self._user_service.get_by_email_in_db(credentials.email)
         if not verify_password(credentials.password, user.password):
             await self._user_service.increment_invalid_login_attempts(credentials.email, session)
             raise InvalidCredentialsException()
@@ -153,7 +116,7 @@ class AuthService:
         self, data: RequestPasswordResetRequest, session = None
     ) -> None:
         """Create and send password reset link."""
-        user = await self._user_service.get_user_in_db(data.email)
+        user = await self._user_service.get_by_email_in_db(data.email)
         if not user:
             raise UserNotFoundException()
         payload = PasswordResetToken(
@@ -174,7 +137,7 @@ class AuthService:
         self, data: ResetPasswordRequest, session = None
     ) -> None:
         """Reset password. Requires a password reset token."""
-        user = await self._user_service.get_user_in_db(data.email)
+        user = await self._user_service.get_by_email_in_db(data.email)
         if not user:
             raise UserNotFoundException()
         token_payload = self._token_service.decode_token(data.token)
@@ -198,34 +161,6 @@ class AuthService:
             user =await self._user_service.update_by_email(data.email, {"is_email_verified": True}, session)
         await self._otp_service.verify_otp(data.code, session)
         return UserInternal.model_validate(user)
-
-    async def request_email_change(
-        self, data: RequestEmailChangeRequest, ctx: RequestContext, session = None
-    ) -> None:
-        if not verify_password(data.password, ctx.user.password):
-            raise InvalidCredentialsException()
-        payload = EmailChangeToken(
-            scope=TokenScope.EMAIL_CHANGE,
-            sub=ctx.user.id,
-            current_email=ctx.user.email,
-            new_email=data.new_email,
-        )
-        change_token = self._token_service.create_email_change_token(payload)
-        change_url = f"{settings.frontend_url}/change-email?token={change_token}"
-        await self._email_service.send_email_change_link(data.new_email, change_url)
-
-    async def confirm_email_change(
-        self, data: ChangeEmailRequest, session = None
-    ) -> UserInternal:
-        token_payload = self._token_service.decode_token(data.token)
-        token = EmailChangeToken.model_validate(token_payload)
-        if token.scope != TokenScope.EMAIL_CHANGE:
-            raise EmailChangeNotAllowedException("Invalid Token")
-        user = await self._user_service.get_by_id(token.sub)
-        if user.email != token.current_email:
-            raise EmailChangeNotAllowedException("Invalid Token. Mismatch!")
-        updated_user = await self._user_service.update_by_email(token.current_email, {"email": token.new_email}, session)
-        return UserInternal.model_validate(updated_user)
 
     async def create_access_token(
         self, request: Request, response: Response, user_id: str, set_cookie: bool = True

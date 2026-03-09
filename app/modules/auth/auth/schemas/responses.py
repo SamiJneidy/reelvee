@@ -23,9 +23,5 @@ class LoginResponse(BaseModel):
     user: UserResponse
 
 
-class SignUpCompleteResponse(BaseModel):
-    user: UserResponse
-
-
 class CurrentSessionResponse(BaseModel):
     user: UserResponse
