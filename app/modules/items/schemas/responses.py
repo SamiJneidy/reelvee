@@ -1,6 +1,6 @@
 from pydantic import ConfigDict
 
-from app.core.enums import ItemStatus
+from app.core.enums import ItemStatus, ItemType
 from app.modules.items.models import ItemAttribute
 from app.shared.schemas.common import BaseModelWithId, TimeMixin
 
@@ -22,5 +22,6 @@ class ItemPublicResponse(BaseModelWithId):
     tags: list[str] = []
     status: ItemStatus
     attributes: list[ItemAttribute] = []
+    type: ItemType
 
     model_config = ConfigDict(from_attributes=True)

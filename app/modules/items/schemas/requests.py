@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 
-from app.core.enums import ItemStatus
-
+from app.core.enums import ItemStatus, ItemType
 from app.modules.items.models import ItemAttribute
 
 
@@ -17,6 +16,7 @@ class ItemCreate(BaseModel):
     status: ItemStatus
     visibility: bool
     attributes: list[ItemAttribute] = Field([], description="Item attributes (name, value pairs)")
+    type: ItemType = Field(..., description="Item type")
 
 
 class ItemUpdate(BaseModel):

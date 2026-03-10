@@ -13,7 +13,6 @@ class TokenService:
 
     def _create_token(self, payload: dict) -> str:
         token = jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
-        print(token)
         return token
 
     def decode_token(self, token: str) -> dict:  

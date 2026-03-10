@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from app.core.enums import ItemStatus
+from app.core.enums import ItemStatus, ItemType
 
 
 class ItemFilters(BaseModel):
@@ -9,3 +9,4 @@ class ItemFilters(BaseModel):
     status: ItemStatus | None = None
     visibility: bool | None = None
     slug: str | None = None
+    type: ItemType | None = None

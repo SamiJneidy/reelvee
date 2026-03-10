@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.core.enums import ItemStatus
+from app.core.enums import ItemStatus, ItemType
 from app.modules.items.models import ItemAttribute
 
 from .base import ItemBase
@@ -26,3 +26,4 @@ class ItemUpdateInternal(BaseModel):
     visibility: bool | None = None
     slug: str | None = None
     attributes: list[ItemAttribute] | None = None
+    type: ItemType | None = None

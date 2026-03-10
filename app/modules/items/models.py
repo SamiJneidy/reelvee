@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from beanie import Document, Indexed, Link, PydanticObjectId
 
-from app.core.enums import ItemStatus
+from app.core.enums import ItemStatus, ItemType
 from app.modules.users.models import User
 from app.shared.models.mixins import BaseDocument
 
@@ -26,6 +26,7 @@ class Item(BaseDocument):
     attributes: list[ItemAttribute] = []
     user_id: PydanticObjectId
     user: Link[User] | None = None
+    type: ItemType
 
     class Settings:
         name = "items"
