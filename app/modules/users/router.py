@@ -132,3 +132,18 @@ async def delete_current_user(
     session = Depends(get_session),
 ) -> None:
     await user_service.delete_user(ctx.user.email, session=session)
+
+
+@router.delete(
+    "",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary=UserDocs.SoftDeleteUser.summary,
+    description=UserDocs.SoftDeleteUser.description,
+    responses=UserDocs.SoftDeleteUser.responses,
+)
+async def delete_current_user(
+    email: str,
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    session = Depends(get_session),
+) -> None:
+    await user_service.delete_user(email, session=session)
