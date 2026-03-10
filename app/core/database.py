@@ -9,7 +9,7 @@ from app.core.config import settings
 
 from app.modules.users.models import User
 from app.modules.auth.otp.models import OTP
-from app.modules.products.models import Product
+from app.modules.items.models import Item
 
 # Single client for the app. Created at import; connect in init_db().
 client = AsyncIOMotorClient(
@@ -20,7 +20,7 @@ database = client[settings.mongodb_name]
 
 async def init_db() -> None:
     """Init Beanie with the app client. Call once at startup (lifespan)."""
-    await init_beanie(database=database, document_models=[User, OTP, Product])
+    await init_beanie(database=database, document_models=[User, OTP, Item])
 
 
 async def get_session() -> AsyncGenerator[AsyncIOMotorClient, None]:

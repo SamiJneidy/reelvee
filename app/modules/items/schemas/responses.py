@@ -1,0 +1,26 @@
+from pydantic import ConfigDict
+
+from app.core.enums import ItemStatus
+from app.modules.items.models import ItemAttribute
+from app.shared.schemas.common import BaseModelWithId, TimeMixin
+
+from .base import ItemBase
+
+
+class ItemResponse(ItemBase, BaseModelWithId, TimeMixin):
+    slug: str
+    model_config = ConfigDict(from_attributes=True)
+
+class ItemPublicResponse(BaseModelWithId):
+    name: str
+    slug: str
+    description: str | None = None
+    price: float
+    featured_img: str | None = None
+    item_gallery: list[str] = []
+    category: str | None = None
+    tags: list[str] = []
+    status: ItemStatus
+    attributes: list[ItemAttribute] = []
+
+    model_config = ConfigDict(from_attributes=True)

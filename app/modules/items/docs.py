@@ -1,4 +1,4 @@
-"""OpenAPI documentation for product endpoints."""
+"""OpenAPI documentation for item endpoints."""
 
 from typing import Any
 from fastapi import status
@@ -6,7 +6,7 @@ from fastapi import status
 from app.shared.docs import error_response
 
 from app.modules.auth.tokens.exceptions import InvalidTokenException
-from app.modules.products.exceptions import ProductNotFoundException
+from app.modules.items.exceptions import ItemNotFoundException
 from app.modules.users.exceptions import UserNotFoundException
 
 
@@ -14,47 +14,47 @@ from app.modules.users.exceptions import UserNotFoundException
 # Private (owner) routes — require authentication
 # -------------------------------------------------------------------------
 
-class ProductDocs:
+class ItemDocs:
 
-    class ListOwnProducts:
-        summary = "List my products"
+    class ListOwnItems:
+        summary = "List my items"
         description = (
-            "Returns a paginated list of the authenticated user's products. "
+            "Returns a paginated list of the authenticated user's items. "
             "Optional filters: name, category, status, visibility, slug."
         )
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
         }
 
-    class GetOwnProduct:
-        summary = "Get my product by ID"
-        description = "Returns a single product by ID. Only products owned by the authenticated user."
+    class GetOwnItem:
+        summary = "Get my item by ID"
+        description = "Returns a single item by ID. Only items owned by the authenticated user."
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
-            status.HTTP_404_NOT_FOUND: error_response(ProductNotFoundException),
+            status.HTTP_404_NOT_FOUND: error_response(ItemNotFoundException),
         }
 
-    class CreateProduct:
-        summary = "Create product"
-        description = "Creates a new product for the authenticated user. Slug is generated from the product name."
+    class CreateItem:
+        summary = "Create item"
+        description = "Creates a new item for the authenticated user. Slug is generated from the item name."
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
         }
 
-    class UpdateOwnProduct:
-        summary = "Update my product"
-        description = "Updates an existing product by ID. Only provided fields are updated. Product must belong to the authenticated user."
+    class UpdateOwnItem:
+        summary = "Update my item"
+        description = "Updates an existing item by ID. Only provided fields are updated. Item must belong to the authenticated user."
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
-            status.HTTP_404_NOT_FOUND: error_response(ProductNotFoundException),
+            status.HTTP_404_NOT_FOUND: error_response(ItemNotFoundException),
         }
 
-    class DeleteOwnProduct:
-        summary = "Delete my product"
-        description = "Deletes a product by ID. Product must belong to the authenticated user."
+    class DeleteOwnItem:
+        summary = "Delete my item"
+        description = "Deletes an item by ID. Item must belong to the authenticated user."
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
-            status.HTTP_404_NOT_FOUND: error_response(ProductNotFoundException),
+            status.HTTP_404_NOT_FOUND: error_response(ItemNotFoundException),
         }
 
 
@@ -62,25 +62,25 @@ class ProductDocs:
 # Public (storefront) routes — no authentication
 # -------------------------------------------------------------------------
 
-class ProductPublicDocs:
+class ItemPublicDocs:
 
-    class ListStoreProducts:
-        summary = "List store products"
+    class ListStoreItems:
+        summary = "List store items"
         description = (
-            "Returns a paginated list of products for a store, by store URL. "
+            "Returns a paginated list of items for a store, by store URL. "
             "Used for the public storefront. Optional filters: name, category, status, visibility, slug."
         )
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_404_NOT_FOUND: error_response(UserNotFoundException),
         }
 
-    class GetStoreProductBySlug:
-        summary = "Get store product by slug"
-        description = "Returns a single product by slug for a given store (by store URL). Public endpoint for storefronts."
+    class GetStoreItemBySlug:
+        summary = "Get store item by slug"
+        description = "Returns a single item by slug for a given store (by store URL). Public endpoint for storefronts."
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_404_NOT_FOUND: error_response(
                 UserNotFoundException,
-                ProductNotFoundException,
-                description="Store not found or product not found",
+                ItemNotFoundException,
+                description="Store not found or item not found",
             ),
         }

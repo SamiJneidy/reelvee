@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 from app.modules.auth.auth.router import router as auth_router
 from app.modules.users.router import router as users_router
-from app.modules.products.routers import (
-    public_router as products_public_router,
-    private_router as products_private_router,
+from app.modules.items.routers import (
+    public_router as items_public_router,
+    private_router as items_private_router,
 )
 
 router = APIRouter(
@@ -12,5 +12,5 @@ router = APIRouter(
 
 router.include_router(auth_router)
 router.include_router(users_router)
-router.include_router(products_public_router)
-router.include_router(products_private_router)
+router.include_router(items_public_router)
+router.include_router(items_private_router)

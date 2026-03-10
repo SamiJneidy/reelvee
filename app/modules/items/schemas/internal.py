@@ -2,27 +2,27 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.core.enums import ProductStatus
-from app.modules.products.models import ProductAttribute
+from app.core.enums import ItemStatus
+from app.modules.items.models import ItemAttribute
 
-from .base import ProductBase
+from .base import ItemBase
 from app.shared.schemas.common import TimeMixin, BaseModelWithId
 
-class ProductInternal(ProductBase, BaseModelWithId, TimeMixin):
+class ItemInternal(ItemBase, BaseModelWithId, TimeMixin):
     slug: str
     model_config = ConfigDict(from_attributes=True)
 
 
-class ProductUpdateInternal(BaseModel):
+class ItemUpdateInternal(BaseModel):
     name: str | None = None
     description: str | None = None
     price: float | None = None
     cost: float | None = None
     featured_img: str | None = None
-    product_gallery: list[str] | None = None
+    item_gallery: list[str] | None = None
     category: str | None = None
     tags: list[str] | None = None
-    status: ProductStatus | None = None
+    status: ItemStatus | None = None
     visibility: bool | None = None
     slug: str | None = None
-    attributes: list[ProductAttribute] | None = None
+    attributes: list[ItemAttribute] | None = None

@@ -1,19 +1,19 @@
 from pydantic import BaseModel
 
-from app.core.enums import ProductStatus
+from app.core.enums import ItemStatus
 
-from app.modules.products.models import ProductAttribute
+from app.modules.items.models import ItemAttribute
 
 
-class ProductBase(BaseModel):
+class ItemBase(BaseModel):
     name: str
     description: str | None = None
     price: float
     cost: float | None = None
     featured_img: str | None = None
-    product_gallery: list[str] = []
+    item_gallery: list[str] = []
     category: str | None = None
     tags: list[str] = []
-    status: ProductStatus
+    status: ItemStatus
     visibility: bool
-    attributes: list[ProductAttribute] = []
+    attributes: list[ItemAttribute] = []
