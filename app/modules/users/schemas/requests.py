@@ -35,7 +35,6 @@ class UserUpdate(BaseModel):
     logo: str | None = None
     business_name: str | None = None
     business_description: str | None = None
-    store_url: str | None = None
     links: list[Link] | None = None
 
 class SignUpCompleteRequest(BaseModel):
