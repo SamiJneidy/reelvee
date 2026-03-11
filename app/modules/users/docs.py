@@ -36,6 +36,10 @@ class UserDocs:
             "Only provided fields are updated (partial update)."
         )
         responses: dict[int | str, dict[str, Any]] = {
+            status.HTTP_400_BAD_REQUEST: error_response(
+                DuplicateKeyErrorException,
+                description="Some of the fields are already in use (email, store link, whatsapp number)",
+            ),
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
             status.HTTP_404_NOT_FOUND: error_response(UserNotFoundException),
         }

@@ -139,7 +139,10 @@ class UserService:
             update_data = update_data.model_dump(exclude_none=True)
         if update_data.get("store_url"):
             await self.validate_store_link(email, update_data["store_url"], session)
-        user = await self._repo.update_by_email(email, update_data, session=session)
+        try:
+            user = await self._repo.update_by_email(email, update_data, session=session)
+        except (DuplicateKeyError, RevisionIdWasChanged):
+            raise DuplicateKeyErrorException("Duplicate key error. Some of the fields are already in use (email, store link, whatsapp number)")
         if not user:
             raise UserNotFoundException()
         return UserInternal.model_validate(user)
