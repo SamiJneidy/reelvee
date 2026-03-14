@@ -3,7 +3,7 @@ from typing import Annotated
 
 from app.modules.users.repository import UserRepository
 from app.modules.users.service import UserService
-from app.shared.email.dependencies import EmailService, get_email_service
+from app.shared.dependencies.email import EmailService, get_email_service
 from app.modules.auth.tokens.dependencies import TokenService, get_token_service
 
 def get_user_repository() -> UserRepository:

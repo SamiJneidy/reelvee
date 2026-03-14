@@ -36,7 +36,7 @@ from app.modules.users.schemas.internal import UserInternal
 from app.modules.users.service import UserService
 from app.modules.users.schemas import UserCreate
 from app.modules.auth.auth.repository import AuthRepository
-from app.shared.email.service import EmailService
+from app.shared.services import EmailService
 
 class AuthService:
 

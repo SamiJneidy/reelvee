@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import ItemStatus, ItemType
 from app.modules.items.models import ItemAttribute
+from app.modules.storage.schemas import FileInput
 
 from .base import ItemBase
 from app.shared.schemas.common import TimeMixin, BaseModelWithId
@@ -18,8 +19,8 @@ class ItemUpdateInternal(BaseModel):
     description: str | None = None
     price: float | None = None
     cost: float | None = None
-    featured_img: str | None = None
-    item_gallery: list[str] | None = None
+    thumbnail: FileInput | None = None
+    images: list[FileInput] | None = None
     category: str | None = None
     tags: list[str] | None = None
     status: ItemStatus | None = None

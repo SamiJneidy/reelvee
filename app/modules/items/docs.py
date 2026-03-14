@@ -3,11 +3,13 @@
 from typing import Any
 from fastapi import status
 
-from app.shared.docs import error_response
+from app.shared.utils.docs import error_response
 
 from app.modules.auth.tokens.exceptions import InvalidTokenException
 from app.modules.items.exceptions import ItemNotFoundException
+from app.modules.storage.exceptions import FileDeleteException
 from app.modules.users.exceptions import UserNotFoundException
+
 
 
 # -------------------------------------------------------------------------
@@ -43,7 +45,7 @@ class ItemDocs:
 
     class UpdateOwnItem:
         summary = "Update my item"
-        description = "Updates an existing item by ID. Only provided fields are updated. Item must belong to the authenticated user."
+        description = "Updates an existing item by ID. Only provided fields are updated. Be careful when updating images, images with omitted or null URLs will be treated as new files. Item must belong to the authenticated user."
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
             status.HTTP_404_NOT_FOUND: error_response(ItemNotFoundException),
@@ -55,6 +57,19 @@ class ItemDocs:
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
             status.HTTP_404_NOT_FOUND: error_response(ItemNotFoundException),
+        }
+
+    class DeleteOwnThumbnail:
+        summary = "Delete my item's thumbnail"
+        description = (
+            "Deletes the thumbnail of an item and removes it from storage. "
+            "If the item has no thumbnail, the request is ignored. "
+            "Item must belong to the authenticated user."
+        )
+        responses: dict[int | str, dict[str, Any]] = {
+            status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
+            status.HTTP_404_NOT_FOUND: error_response(ItemNotFoundException),
+            status.HTTP_500_INTERNAL_SERVER_ERROR: error_response(FileDeleteException),
         }
 
 

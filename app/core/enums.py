@@ -67,3 +67,14 @@ class ItemStatus(str, Enum):
 class ItemType(str, Enum):
     PRODUCT = "product"
     SERVICE = "service"
+
+
+class TempFileUploadPath(str, Enum):
+    ITEM_THUMBNAIL = "temp/items/thumbnails"
+    ITEM_IMAGE     = "temp/items/images"
+    USER_PROFILE   = "temp/users/profile"
+
+class PermanentFileUploadPath(str, Enum):
+    ITEM_THUMBNAIL = "uploads/items/thumbnails"
+    ITEM_IMAGE     = "uploads/items/images"
+    USER_PROFILE   = "uploads/users/profile"

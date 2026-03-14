@@ -132,3 +132,19 @@ async def delete_item(
     session = Depends(get_session),
 ) -> None:
     await item_service.delete_own_by_id(ctx, item_id, session)
+
+
+@router.delete(
+    "/{item_id}/thumbnail",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary=ItemDocs.DeleteOwnThumbnail.summary,
+    description=ItemDocs.DeleteOwnThumbnail.description,
+    responses=ItemDocs.DeleteOwnThumbnail.responses,
+)
+async def delete_thumbnail(
+    item_id: PydanticObjectId,
+    item_service: ItemService = Depends(get_item_service),
+    ctx: RequestContext = Depends(get_request_context),
+    session = Depends(get_session),
+) -> None:
+    await item_service.delete_thumbnail(ctx, item_id, session)

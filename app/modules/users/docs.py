@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import status
 
 from app.core.exceptions.exceptions import DuplicateKeyErrorException
-from app.shared.docs import error_response
+from app.shared.utils.docs import error_response
 
 from app.modules.auth.tokens.exceptions import InvalidTokenException
 from app.modules.users.exceptions import EmailChangeNotAllowedException, UserAlreadyCompletedException, UserNotFoundException, UserNotVerifiedException

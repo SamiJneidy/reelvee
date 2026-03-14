@@ -3,21 +3,21 @@ from beanie import Document, Indexed, Link, PydanticObjectId
 
 from app.core.enums import ItemStatus, ItemType
 from app.modules.users.models import User
-from app.shared.models.mixins import BaseDocument
+from app.shared.models import BaseDocument
+from app.modules.storage.models import File
 
 
 class ItemAttribute(BaseModel):
     name: str
     value: str
 
-
 class Item(BaseDocument):
     name: str
     description: str | None = None
     price: float
     cost: float | None = None
-    featured_img: str | None = None
-    item_gallery: list[str] = []
+    thumbnail: File | None = None
+    images: list[File] = []
     category: str | None = None
     tags: list[str] = []
     status: ItemStatus

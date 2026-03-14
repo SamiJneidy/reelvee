@@ -2,7 +2,7 @@ import asyncio
 from fastapi_mail import FastMail, MessageSchema
 from pydantic import EmailStr
 from app.core.config import mail_config
-from app.shared.email.exceptions import EmailCouldNotBeSentException
+from app.shared.exceptions.email import EmailCouldNotBeSentException
 
 
 class EmailService:

@@ -2,6 +2,7 @@ from pydantic import ConfigDict
 
 from app.core.enums import ItemStatus, ItemType
 from app.modules.items.models import ItemAttribute
+from app.modules.storage.schemas import FileResponse
 from app.shared.schemas.common import BaseModelWithId, TimeMixin
 
 from .base import ItemBase
@@ -16,8 +17,8 @@ class ItemPublicResponse(BaseModelWithId):
     slug: str
     description: str | None = None
     price: float
-    featured_img: str | None = None
-    item_gallery: list[str] = []
+    thumbnail: FileResponse | None = None
+    images: list[FileResponse] = []
     category: str | None = None
     tags: list[str] = []
     status: ItemStatus

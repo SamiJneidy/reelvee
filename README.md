@@ -1,6 +1,6 @@
 # reelvee – Backend API
 
-REST API for the reelvee platform. Handles authentication (JWT, signup, login, password reset, email verification), user management, and transactional email.
+REST API for the reelvee platform written in FastAPI..
 
 **Stack:** FastAPI · MongoDB (Beanie) · Pydantic · JWT (cookies) · FastAPI-Mail
 
@@ -20,11 +20,13 @@ Add a `.env` file with MongoDB URI, JWT secret, and SMTP settings (see `app/core
 python -m app.main
 ```
 
-API: `http://localhost:8000` · Docs: `http://localhost:8000/docs`
+## Docs
+
+You can find Swagger docs on `http://{host}:{port}/docs`. Also it's available on `http://{host}:{port}/redoc`
 
 ## Structure
 
 - `app/core` — config, database (Beanie), security, exceptions
 - `app/modules/auth` — auth + OTP + tokens
-- `app/modules/users` — user CRUD, invitations, update/soft-delete current user
+- `app/modules/users` — user CRUD, profile change
 - `app/shared` — schemas, email service, dependencies

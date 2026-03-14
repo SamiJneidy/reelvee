@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     sign_up_complete_expiration_days: int
     frontend_url: str
 
+    # AWS
+    aws_access_key_id: str
+    aws_secret_access_key: str
+    aws_region: str
+    aws_bucket: str
+    aws_presigned_url_expiration_seconds: int
+
     # Mail
     mail_username: str
     mail_password: str

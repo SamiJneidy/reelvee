@@ -15,7 +15,7 @@ from .exceptions import (
     OTPAlreadyUsedException,
     SuspiciousOTPActivityException,
 )
-from app.shared.email.service import EmailService
+from app.shared.services import EmailService
 
 class OTPService:
     def __init__(self, otp_repo: OTPRepository, email_service: EmailService) -> None:

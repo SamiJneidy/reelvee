@@ -3,15 +3,15 @@ from pydantic import BaseModel
 from app.core.enums import ItemStatus, ItemType
 
 from app.modules.items.models import ItemAttribute
-
+from app.modules.storage.schemas import FileResponse
 
 class ItemBase(BaseModel):
     name: str
     description: str | None = None
     price: float
     cost: float | None = None
-    featured_img: str | None = None
-    item_gallery: list[str] = []
+    thumbnail: FileResponse | None = None
+    images: list[FileResponse] = []
     category: str | None = None
     tags: list[str] = []
     status: ItemStatus

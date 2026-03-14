@@ -3,7 +3,7 @@
 from typing import Any
 from fastapi import status
 
-from app.shared.docs import error_response
+from app.shared.utils.docs import error_response
 
 from app.modules.auth.auth.exceptions import (
     InvalidCredentialsException,

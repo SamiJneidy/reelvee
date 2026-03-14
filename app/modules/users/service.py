@@ -30,7 +30,7 @@ from app.modules.users.schemas import (
 )
 from app.modules.users.schemas.requests import ChangeEmailRequest, RequestEmailChangeRequest, SignUpCompleteRequest
 from app.modules.users.schemas.responses import SignUpCompleteResponse, UserResponse
-from app.shared.email.service import EmailService
+from app.shared.services import EmailService
 
 class UserService:
     def __init__(self, 

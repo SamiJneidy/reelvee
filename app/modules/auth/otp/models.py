@@ -2,7 +2,7 @@ from beanie import Document, Indexed
 from pymongo import IndexModel
 from datetime import datetime
 from app.core.enums import OTPUsage, OTPStatus
-from app.shared.models.mixins import BaseDocument
+from app.shared.models.base import BaseDocument
 
 class OTP(BaseDocument):
     email: Indexed(str)
