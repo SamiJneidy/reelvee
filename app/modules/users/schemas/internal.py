@@ -3,7 +3,8 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.core.enums import UserPlan, UserStatus, UserStep
-from app.shared.schemas.common import Link, BaseModelWithId
+from app.shared.schemas.common import Link
+from app.shared.schemas.base import BaseModelWithId
 
 from .base import UserBase
 

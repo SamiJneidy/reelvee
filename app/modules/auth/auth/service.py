@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone
 from fastapi import Request, Response
 
@@ -21,7 +22,7 @@ from app.modules.auth.auth.schemas.responses import (
     LoginResponse,
 )
 from app.modules.auth.otp.service import OTPService
-from app.modules.auth.tokens.schemas import AccessToken, PasswordResetToken, RefreshToken, SignUpCompleteToken
+from app.modules.auth.tokens.schemas import AccessToken, PasswordResetToken, RefreshToken, RefreshTokenCreate, SignUpCompleteToken
 from app.modules.auth.tokens.service import TokenService
 from app.modules.users.exceptions import (
     UserAlreadyExistsException,
@@ -123,7 +124,7 @@ class AuthService:
             scope=TokenScope.RESET_PASSWORD,
             sub=user.id,
         )
-        reset_token = self._token_service.create_password_reset_token(payload)
+        reset_token = self._token_service.generate_password_reset_token(payload)
         reset_url = f"{settings.frontend_url}/reset-password?email={data.email}&token={reset_token}"
         await self._email_service.send_password_reset_link(data.email, reset_url)
 
@@ -148,6 +149,7 @@ class AuthService:
         hashed = hash_password(data.new_password)
         await self._user_service.update_by_email(data.email, {"password": hashed}, session)
         await self._user_service.reset_invalid_login_attempts(data.email, session)
+        await self._token_service.revoke_all_refresh_tokens_for_user(str(user.id))
 
 
     async def verify_email(
@@ -167,7 +169,7 @@ class AuthService:
     ) -> str:
         """Create access token. user_id is string (Beanie id)."""
         payload = AccessToken(sub=user_id)
-        token = self._token_service.create_access_token(payload)
+        token = self._token_service.generate_access_token(payload)
         if set_cookie:
             await self.set_access_token_cookie(request, response, token)
         return token
@@ -189,10 +191,23 @@ class AuthService:
         )
     
     async def create_refresh_token(
-        self, request: Request, response: Response, user_id: str, set_cookie: bool = True
+        self,
+        request: Request,
+        response: Response,
+        user_id: str,
+        set_cookie: bool = True,
+        family_id: str | None = None,
     ) -> str:
-        payload = RefreshToken(sub=user_id)
-        token = self._token_service.create_refresh_token(payload)
+        payload = RefreshToken(sub=user_id, family_id=family_id or str(uuid.uuid4()))
+        token = self._token_service.generate_refresh_token(payload)
+        await self._token_service.create_refresh_token(
+            RefreshTokenCreate(
+                token_id=payload.jti,
+                family_id=payload.family_id,
+                user_id=user_id,
+                expires_at=payload.exp,
+            )
+        )
         if set_cookie:
             await self.set_refresh_token_cookie(request, response, token)
         return token
@@ -218,7 +233,7 @@ class AuthService:
         self, request: Request, response: Response, user_id: str, set_cookie: bool = True
     ) -> str:
         payload = SignUpCompleteToken(sub=user_id)
-        token = self._token_service.create_sign_up_complete_token(payload)
+        token = self._token_service.generate_sign_up_complete_token(payload)
         if set_cookie:
             await self.set_sign_up_complete_token_cookie(request, response, token)
         return token
@@ -241,12 +256,48 @@ class AuthService:
         return token
 
     async def refresh(
-        self, request: Request, response: Response, refresh_token: str, set_cookie: bool = False
+        self, request: Request, response: Response, refresh_token: str, set_cookie: bool = True
     ) -> None:
-        """Issue new access token from refresh token."""
+        """Rotate refresh token and issue a new access token."""
+        from app.modules.auth.tokens.exceptions import InvalidTokenException
+
         payload = self._token_service.decode_token(refresh_token)
+
+        if payload.get("scope") != TokenScope.REFRESH:
+            raise InvalidTokenException()
+
+        jti = payload.get("jti")
+        family_id = payload.get("family_id")
         user_id = payload.get("sub")
+
+        if not jti or not family_id:
+            raise InvalidTokenException()
+
+        record = await self._token_service.get_refresh_token_by_jti(jti)
+
+        if not record or record.is_revoked:
+            await self._token_service.revoke_refresh_token_family(family_id)
+            raise InvalidTokenException()
+
+        # Invalidate the consumed token before issuing a new one
+        await self._token_service.revoke_refresh_token(jti)
+
         await self.create_access_token(request, response, user_id, set_cookie)
+        await self.create_refresh_token(request, response, user_id, set_cookie, family_id=family_id)
+
+    async def logout_session(self, request: Request, response: Response) -> None:
+        """Revoke the current refresh token family and clear cookies."""
+        refresh_token = request.cookies.get("refresh_token")
+        if refresh_token:
+            try:
+                payload = self._token_service.decode_token(refresh_token)
+                family_id = payload.get("family_id")
+                if family_id:
+                    await self._token_service.revoke_refresh_token_family(family_id)
+            except Exception:
+                pass
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
 
     async def get_user_from_token(self, token: str) -> UserInternal:
         """Resolve user from JWT."""

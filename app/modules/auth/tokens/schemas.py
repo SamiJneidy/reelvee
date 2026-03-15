@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr
+import uuid
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime, timedelta, timezone
 from app.core.enums import TokenScope
 from typing import Optional, Literal
@@ -10,6 +11,14 @@ class TokenPayloadBase(BaseModel):
     iat: datetime
     exp: datetime
 
+    @field_validator("sub", mode="after")
+    @classmethod
+    def sub_to_str(cls, v: str) -> str:
+        try:
+            return str(v)
+        except Exception as e:
+            raise ValueError(f"Invalid sub: {v}") from e
+
 class AccessToken(TokenPayloadBase):
     scope: Literal[TokenScope.ACCESS] = TokenScope.ACCESS
     iat: datetime = datetime.now(timezone.utc)
@@ -17,6 +26,8 @@ class AccessToken(TokenPayloadBase):
 
 class RefreshToken(TokenPayloadBase):
     scope: Literal[TokenScope.REFRESH] = TokenScope.REFRESH
+    jti: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    family_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     iat: datetime = datetime.now(timezone.utc)
     exp: datetime = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expiration_days)
 
@@ -36,3 +47,16 @@ class EmailChangeToken(TokenPayloadBase):
     current_email: EmailStr
     iat: datetime = datetime.now(timezone.utc)
     exp: datetime = datetime.now(timezone.utc) + timedelta(minutes=settings.email_change_token_expiration_minutes)
+
+class RefreshTokenCreate(BaseModel):
+    token_id: str
+    family_id: str
+    user_id: str
+    expires_at: datetime
+
+class RefreshTokenInDB(BaseModel):
+    token_id: str
+    family_id: str
+    user_id: str
+    is_revoked: bool
+    expires_at: datetime

@@ -130,10 +130,11 @@ async def refresh(
     description=AuthDocs.Logout.description,
 )
 async def logout(
+    request: Request,
     response: Response,
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> SuccessResponse:
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token")
+    await auth_service.logout_session(request, response)
     return SuccessResponse(detail="Logged out successfully")
 
 

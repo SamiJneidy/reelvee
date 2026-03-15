@@ -7,7 +7,8 @@ from app.modules.items.models import ItemAttribute
 from app.modules.storage.schemas import FileInput
 
 from .base import ItemBase
-from app.shared.schemas.common import TimeMixin, BaseModelWithId
+from app.shared.schemas.base import BaseModelWithId
+from app.shared.schemas.mixins import TimeMixin
 
 class ItemInternal(ItemBase, BaseModelWithId, TimeMixin):
     slug: str

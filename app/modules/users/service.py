@@ -159,7 +159,7 @@ class UserService:
             current_email=user.email,
             new_email=data.new_email,
         )
-        change_token = self._token_service.create_email_change_token(payload)
+        change_token = self._token_service.generate_email_change_token(payload)
         change_url = f"{settings.frontend_url}/change-email?token={change_token}"
         await self._email_service.send_email_change_link(data.new_email, change_url)
 

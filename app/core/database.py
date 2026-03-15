@@ -1,14 +1,13 @@
-from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.asynchronous.client_session import AsyncClientSession
 
 from app.core.config import settings
 
 from app.modules.users.models import User
 from app.modules.auth.otp.models import OTP
+from app.modules.auth.tokens.models import RefreshTokenRecord
 from app.modules.items.models import Item
 
 # Single client for the app. Created at import; connect in init_db().
@@ -20,7 +19,7 @@ database = client[settings.mongodb_name]
 
 async def init_db() -> None:
     """Init Beanie with the app client. Call once at startup (lifespan)."""
-    await init_beanie(database=database, document_models=[User, OTP, Item])
+    await init_beanie(database=database, document_models=[User, OTP, Item, RefreshTokenRecord])
 
 
 async def get_session() -> AsyncGenerator[AsyncIOMotorClient, None]:
