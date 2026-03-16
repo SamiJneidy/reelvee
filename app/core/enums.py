@@ -78,3 +78,4 @@ class PermanentFileUploadPath(str, Enum):
     ITEM_THUMBNAIL = "uploads/items/thumbnails"
     ITEM_IMAGE     = "uploads/items/images"
     USER_LOGO      = "uploads/users/logos"
+    USER_QR_CODE   = "uploads/users/qr_codes"

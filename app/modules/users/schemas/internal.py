@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from app.core.enums import UserPlan, UserStatus, UserStep
 from app.shared.schemas.common import Link
 from app.shared.schemas.base import BaseModelWithId
-from app.modules.storage.schemas import FileInput
+from app.modules.storage.schemas import FileInput, FileResponse
 from .base import UserBase
 
 
@@ -17,7 +17,7 @@ class UserInternal(UserBase, BaseModelWithId):
     step: UserStep
     is_email_verified: bool
     is_completed: bool
-    qr_code: str | None = None
+    qr_code: FileResponse | None = None
     is_deleted: bool
     model_config = ConfigDict(from_attributes=True)
 
@@ -37,7 +37,6 @@ class UserUpdateInternal(BaseModel):
     business_description: str | None = None
     store_url: str | None = None
     links: list[Link] | None = None
-    qr_code: str | None = None
     status: UserStatus | None = None
     step: UserStep | None = None
     is_email_verified: bool | None = None

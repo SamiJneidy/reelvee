@@ -32,8 +32,10 @@ from app.modules.users.schemas import (
 )
 from app.modules.users.schemas.requests import ChangeEmailRequest, RequestEmailChangeRequest, SignUpCompleteRequest
 from app.modules.users.schemas.responses import SignUpCompleteResponse, UserResponse
+from app.modules.users.utils import get_full_store_url
 from app.shared.services import EmailService
 from app.modules.storage.service import StorageService
+from app.shared.utils.qrcode_helper import QRCodeUtils
 
 class UserService:
     def __init__(self, 
@@ -111,6 +113,9 @@ class UserService:
             full_user = await self.update_by_email(email, user_data, session)
         except (DuplicateKeyError, RevisionIdWasChanged):
             raise DuplicateKeyErrorException("Duplicate key error. The store link or whatsapp number is already in use")
+        user_url = get_full_store_url(full_user.store_url)
+        qr_code = await self.generate_qr_code(user_url, session)
+        full_user = await self._repo.update_by_email(email, {"qr_code": qr_code}, session=session)
         return SignUpCompleteResponse(user=UserResponse.model_validate(full_user))
 
     async def validate_store_link(self, user_email: str, store_url: str, session=None) -> None:
@@ -235,13 +240,11 @@ class UserService:
         await self._storage_service.delete_file(ctx.user.logo.key)
         await self._repo.update_by_id(ctx.user.id, {"logo": None}, session=session)
 
-    async def generate_qr_code(self, store_url: str, session=None) -> str:
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
+    async def generate_qr_code(self, store_url: str, session=None) -> FileResponse:
+        qr_code = QRCodeUtils.generate_qr_code(store_url)
+        data = await self._storage_service.upload_bytes(
+            path=PermanentFileUploadPath.USER_QR_CODE.value,
+            filename=f"{store_url}.png",
+            content=qr_code,
         )
-        qr.add_data(store_url)
-        qr.make(fit=True)
-        return qr.make_image(fill='black', back_color='white')
+        return FileResponse.model_validate(data)

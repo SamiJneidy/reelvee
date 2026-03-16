@@ -18,7 +18,6 @@ class UserCreate(BaseModel):
     business_description: str | None = None
     store_url: str | None = None
     links: list[Link] = []
-    qr_code: str | None = None
     status: UserStatus = UserStatus.PENDING
     step: UserStep = UserStep.ONE
     is_email_verified: bool = False
