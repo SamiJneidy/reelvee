@@ -5,13 +5,15 @@ from typing import Any
 from fastapi import status
 from pymongo.errors import DuplicateKeyError
 from beanie.exceptions import RevisionIdWasChanged
-
+import qrcode
 from app.core.config import settings
-from app.core.enums import TokenScope, UserStatus, UserStep
+from app.core.context import RequestContext
+from app.core.enums import PermanentFileUploadPath, TokenScope, UserStatus, UserStep
 from app.core.exceptions.exceptions import DuplicateKeyErrorException
 from app.core.security import verify_password
 from app.modules.auth.tokens.schemas import EmailChangeToken
 from app.modules.auth.tokens.service import TokenService
+from app.modules.storage.schemas import FileInput, FileResponse
 from app.modules.users.exceptions import (
     EmailChangeNotAllowedException,
     InvalidStoreLinkException,
@@ -31,16 +33,19 @@ from app.modules.users.schemas import (
 from app.modules.users.schemas.requests import ChangeEmailRequest, RequestEmailChangeRequest, SignUpCompleteRequest
 from app.modules.users.schemas.responses import SignUpCompleteResponse, UserResponse
 from app.shared.services import EmailService
+from app.modules.storage.service import StorageService
 
 class UserService:
     def __init__(self, 
         user_repo: UserRepository, 
         token_service: TokenService,
-        email_service: EmailService
+        email_service: EmailService,
+        storage_service: StorageService
     ) -> None:
         self._repo = user_repo
         self._token_service = token_service
         self._email_service = email_service
+        self._storage_service = storage_service
 
     async def get_by_id_in_db(self, id: str) -> UserInDB:
         user = await self._repo.get_by_id(id)
@@ -216,3 +221,27 @@ class UserService:
         user = await self.get_by_email(email)
         await self._repo.delete_by_email(email, session=session)
         return UserInternal.model_validate(user)
+
+    async def save_logo(self, file: FileInput) -> FileResponse:
+        if file.url:
+            return FileResponse.model_validate(file)
+        data = await self._storage_service.finalize_file(
+            file=file,
+            destination_path=PermanentFileUploadPath.USER_LOGO.value
+        )
+        return FileResponse.model_validate(data)
+
+    async def delete_logo(self, ctx: RequestContext, session=None) -> None:
+        await self._storage_service.delete_file(ctx.user.logo.key)
+        await self._repo.update_by_id(ctx.user.id, {"logo": None}, session=session)
+
+    async def generate_qr_code(self, store_url: str, session=None) -> str:
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(store_url)
+        qr.make(fit=True)
+        return qr.make_image(fill='black', back_color='white')

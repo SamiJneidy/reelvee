@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from app.core.enums import UserPlan, UserStatus, UserStep
 from app.shared.schemas.common import Link
 from app.shared.schemas.base import BaseModelWithId
-
+from app.modules.storage.schemas import FileInput
 from .base import UserBase
 
 
@@ -32,7 +32,7 @@ class UserUpdateInternal(BaseModel):
     whatsapp_number: str | None = None
     address: str | None = None
     plan: UserPlan | None = None
-    logo: str | None = None
+    logo: FileInput | None = None
     business_name: str | None = None
     business_description: str | None = None
     store_url: str | None = None

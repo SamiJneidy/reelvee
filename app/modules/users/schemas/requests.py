@@ -2,6 +2,7 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field
 from app.core.enums import UserPlan, UserStatus, UserStep
 from app.shared.schemas.common import Link
+from app.modules.storage.schemas import FileInput
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -12,7 +13,7 @@ class UserCreate(BaseModel):
     whatsapp_number: str | None = None
     address: str | None = None
     plan: UserPlan | None = None
-    logo: str | None = None
+    logo: FileInput | None = None
     business_name: str | None = None
     business_description: str | None = None
     store_url: str | None = None
@@ -32,7 +33,7 @@ class UserUpdate(BaseModel):
     country_code: str | None = None
     whatsapp_number: str | None = None
     address: str | None = None
-    logo: str | None = None
+    logo: FileInput | None = None
     business_name: str | None = None
     business_description: str | None = None
     links: list[Link] | None = None
@@ -43,7 +44,7 @@ class SignUpCompleteRequest(BaseModel):
     country_code: str
     whatsapp_number: str
     address: str | None = None
-    logo: str | None = None
+    logo: FileInput | None = None
     business_name: str | None = None
     business_description: str | None = None
     store_url: str

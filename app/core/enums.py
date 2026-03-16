@@ -72,9 +72,9 @@ class ItemType(str, Enum):
 class TempFileUploadPath(str, Enum):
     ITEM_THUMBNAIL = "temp/items/thumbnails"
     ITEM_IMAGE     = "temp/items/images"
-    USER_PROFILE   = "temp/users/profile"
+    USER_LOGO      = "temp/users/logos"
 
 class PermanentFileUploadPath(str, Enum):
     ITEM_THUMBNAIL = "uploads/items/thumbnails"
     ITEM_IMAGE     = "uploads/items/images"
-    USER_PROFILE   = "uploads/users/profile"
+    USER_LOGO      = "uploads/users/logos"

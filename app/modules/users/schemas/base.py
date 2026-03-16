@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr
 
 from app.core.enums import UserPlan
 from app.shared.schemas.common import Link
-
+from app.modules.storage.schemas import FileResponse
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -12,7 +12,7 @@ class UserBase(BaseModel):
     whatsapp_number: str | None = None
     address: str | None = None
     plan: UserPlan | None = None
-    logo: str | None = None
+    logo: FileResponse | None = None
     business_name: str | None = None
     business_description: str | None = None
     store_url: str | None = None

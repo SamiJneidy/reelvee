@@ -7,6 +7,7 @@ from app.core.exceptions.exceptions import DuplicateKeyErrorException
 from app.shared.utils.docs import error_response
 
 from app.modules.auth.tokens.exceptions import InvalidTokenException
+from app.modules.storage.exceptions import FileDeleteException
 from app.modules.users.exceptions import EmailChangeNotAllowedException, UserAlreadyCompletedException, UserNotFoundException, UserNotVerifiedException
 
 
@@ -54,6 +55,18 @@ class UserDocs:
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
             status.HTTP_404_NOT_FOUND: error_response(UserNotFoundException),
+        }
+
+    class DeleteOwnLogo:
+        summary = "Delete current user logo"
+        description = (
+            "Deletes the authenticated user's logo from storage and "
+            "clears the logo field on their profile."
+        )
+        responses: dict[int | str, dict[str, Any]] = {
+            status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
+            status.HTTP_404_NOT_FOUND: error_response(UserNotFoundException),
+            status.HTTP_500_INTERNAL_SERVER_ERROR: error_response(FileDeleteException),
         }
 
     class RequestEmailChange:

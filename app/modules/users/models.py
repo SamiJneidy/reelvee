@@ -6,6 +6,7 @@ from beanie import Document, Indexed
 from app.core.enums import UserPlan, UserStatus, UserStep
 from app.shared.schemas.common import Link
 from app.shared.models.base import BaseDocument
+from app.modules.storage.models import File
 
 class User(BaseDocument):
     """Single user table. Sign up with email + password only; rest filled in onboarding."""
@@ -19,14 +20,14 @@ class User(BaseDocument):
     whatsapp_number: str | None = Indexed(str, unique=True)
     address: str | None
     plan: UserPlan | None
-    logo: str | None
+    logo: File | None
     business_name: str | None
     business_description: str | None
     store_url: str | None = Indexed(str, unique=True)
     links: list[Link]
     qr_code: str | None
 
-    # Sensetive data    
+    # Security
     last_login: datetime | None
     invalid_login_attempts: int
     status: UserStatus

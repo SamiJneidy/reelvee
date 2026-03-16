@@ -135,6 +135,21 @@ async def delete_current_user(
 
 
 @router.delete(
+    "/me/logo",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary=UserDocs.DeleteOwnLogo.summary,
+    description=UserDocs.DeleteOwnLogo.description,
+    responses=UserDocs.DeleteOwnLogo.responses,
+)
+async def delete_logo(
+    user_service: UserService = Depends(get_user_service),
+    ctx: RequestContext = Depends(get_request_context),
+    session = Depends(get_session),
+) -> None:
+    await user_service.delete_logo(ctx, session)
+
+
+@router.delete(
     "",
     status_code=status.HTTP_204_NO_CONTENT,
     summary=UserDocs.SoftDeleteUser.summary,
