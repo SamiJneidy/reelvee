@@ -2,10 +2,10 @@ from datetime import datetime, timezone
 import re
 from typing import Any
 
+from beanie import PydanticObjectId
 from fastapi import status
 from pymongo.errors import DuplicateKeyError
 from beanie.exceptions import RevisionIdWasChanged
-import qrcode
 from app.core.config import settings
 from app.core.context import RequestContext
 from app.core.enums import PermanentFileUploadPath, TokenScope, UserStatus, UserStep
@@ -49,7 +49,7 @@ class UserService:
         self._email_service = email_service
         self._storage_service = storage_service
 
-    async def get_by_id_in_db(self, id: str) -> UserInDB:
+    async def get_by_id_in_db(self, id: PydanticObjectId) -> UserInDB:
         user = await self._repo.get_by_id(id)
         if not user:
             raise UserNotFoundException()
@@ -61,7 +61,7 @@ class UserService:
             raise UserNotFoundException()
         return UserInDB.model_validate(user)
 
-    async def get_by_id(self, id: str) -> UserInternal:
+    async def get_by_id(self, id: PydanticObjectId) -> UserInternal:
         user = await self._repo.get_by_id(id)
         if not user:
             raise UserNotFoundException()
@@ -101,7 +101,7 @@ class UserService:
         if user.is_completed:
             raise UserAlreadyCompletedException()
         user_data = UserUpdateInternal(
-            **data.model_dump(),
+            **data.model_dump(exclude={"logo"}),
             status=UserStatus.ACTIVE,
             step=UserStep.TWO,
             is_completed=True,
@@ -110,13 +110,17 @@ class UserService:
             invalid_login_attempts=0,
         )
         try:
-            full_user = await self.update_by_email(email, user_data, session)
+            await self.update_by_email(email, user_data, session)
         except (DuplicateKeyError, RevisionIdWasChanged):
             raise DuplicateKeyErrorException("Duplicate key error. The store link or whatsapp number is already in use")
-        user_url = get_full_store_url(full_user.store_url)
+        
+        user_url = get_full_store_url(data.store_url)
         qr_code = await self.generate_qr_code(user_url, session)
-        full_user = await self._repo.update_by_email(email, {"qr_code": qr_code}, session=session)
-        return SignUpCompleteResponse(user=UserResponse.model_validate(full_user))
+        await self._repo.update_by_email(email, {"qr_code": qr_code}, session=session)
+
+        await self.save_logo(user.id, data.logo, session)
+        updated_user = await self.get_by_email(email)
+        return SignUpCompleteResponse(user=UserResponse.model_validate(updated_user))
 
     async def validate_store_link(self, user_email: str, store_url: str, session=None) -> None:
         if len(store_url) < 3:
@@ -158,14 +162,14 @@ class UserService:
         return UserInternal.model_validate(user)
 
     async def request_email_change(
-        self, user_id: str, data: RequestEmailChangeRequest, session = None
+        self, user_id: PydanticObjectId, data: RequestEmailChangeRequest, session = None
     ) -> None:
         user = await self.get_by_id_in_db(user_id)
         if not verify_password(data.password, user.password):
             raise EmailChangeNotAllowedException(detail="Incorrect password")
         payload = EmailChangeToken(
             scope=TokenScope.EMAIL_CHANGE,
-            sub=user_id,
+            sub=str(user_id),
             current_email=user.email,
             new_email=data.new_email,
         )
@@ -180,7 +184,7 @@ class UserService:
         token = EmailChangeToken.model_validate(token_payload)
         if token.scope != TokenScope.EMAIL_CHANGE:
             raise EmailChangeNotAllowedException("Invalid Token")
-        user = await self.get_by_id(token.sub)
+        user = await self.get_by_id(PydanticObjectId(token.sub))
         if user.email != token.current_email:
             raise EmailChangeNotAllowedException("Invalid Token. Mismatch!")
         updated_user = await self.update_by_email(token.current_email, {"email": token.new_email}, session)
@@ -227,13 +231,14 @@ class UserService:
         await self._repo.delete_by_email(email, session=session)
         return UserInternal.model_validate(user)
 
-    async def save_logo(self, file: FileInput) -> FileResponse:
+    async def save_logo(self, user_id: PydanticObjectId, file: FileInput, session=None) -> FileResponse:
         if file.url:
             return FileResponse.model_validate(file)
         data = await self._storage_service.finalize_file(
             file=file,
             destination_path=PermanentFileUploadPath.USER_LOGO.value
         )
+        await self._repo.update_by_id(user_id, {"logo": data}, session=session)
         return FileResponse.model_validate(data)
 
     async def delete_logo(self, ctx: RequestContext, session=None) -> None:

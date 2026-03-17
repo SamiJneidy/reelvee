@@ -43,8 +43,8 @@ class UserRepository:
                 {"store_url": {"$regex": re.escape(filters["store_url"]), "$options": "i"}}
             )
 
-    async def get_by_id(self, id: str, session=None) -> User | None:
-        return await User.get(PydanticObjectId(id), session=session)
+    async def get_by_id(self, id: PydanticObjectId, session=None) -> User | None:
+        return await User.get(id, session=session)
 
     async def get_by_email(self, email: str, session=None) -> User | None:
         return await User.find_one(User.email == email.lower().strip(), session=session)
@@ -72,8 +72,8 @@ class UserRepository:
         await user.insert(session=session)
         return user
 
-    async def update_by_id(self, id: str, data: dict[str, Any], session=None) -> User | None:
-        user = await User.get(PydanticObjectId(id), session=session)
+    async def update_by_id(self, id: PydanticObjectId, data: dict[str, Any], session=None) -> User | None:
+        user = await User.get(id, session=session)
         if user is None:
             return None
         for key, value in data.items():

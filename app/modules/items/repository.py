@@ -33,30 +33,30 @@ class ItemRepository:
     # Public (no context scope)
     # -----------------------------------------------------------------
 
-    async def get_by_id(self, user_id: str, id: str, session=None) -> Item | None:
+    async def get_by_id(self, user_id: PydanticObjectId, id: PydanticObjectId, session=None) -> Item | None:
         return await Item.find_one(
-            Item.user_id == PydanticObjectId(user_id),
-            Item.id == PydanticObjectId(id),
+            Item.user_id == user_id,
+            Item.id == id,
             session=session,
         )
 
-    async def get_by_slug(self, user_id: str, slug: str, session=None) -> Item | None:
+    async def get_by_slug(self, user_id: PydanticObjectId, slug: str, session=None) -> Item | None:
         return await Item.find_one(
-            Item.user_id == PydanticObjectId(user_id),
+            Item.user_id == user_id,
             Item.slug == slug,
             session=session,
         )
 
     async def get_list(
         self,
-        user_id: str,
+        user_id: PydanticObjectId,
         skip: int = 0,
         limit: int = 20,
         filters: dict[str, Any] | None = None,
         session=None,
     ) -> tuple[int, list[Item]]:
         filters_list = self._build_filters(filters)
-        filters_list.append(Item.user_id == PydanticObjectId(user_id))
+        filters_list.append(Item.user_id == user_id)
         query = Item.find(*filters_list, session=session)
         total = await query.count()
         items = await query.skip(skip).limit(limit).to_list()
@@ -66,37 +66,39 @@ class ItemRepository:
     # Owner-scoped (user_id required)
     # -----------------------------------------------------------------
 
-    async def get_own_by_id(self, user_id: str, id: str, session=None) -> Item | None:
+    async def get_own_by_id(self, user_id: PydanticObjectId, id: PydanticObjectId, session=None) -> Item | None:
         return await Item.find_one(
-            Item.user_id == PydanticObjectId(user_id),
-            Item.id == PydanticObjectId(id),
+            Item.user_id == user_id,
+            Item.id == id,
             session=session,
         )
 
-    async def get_own_by_slug(self, user_id: str, slug: str, session=None) -> Item | None:
+    async def get_own_by_slug(self, user_id: PydanticObjectId, slug: str, session=None) -> Item | None:
         return await Item.find_one(
-            Item.user_id == PydanticObjectId(user_id),
+            Item.user_id == user_id,
             Item.slug == slug,
             session=session,
         )
 
-    async def count_own_by_slug(self, user_id: str, slug: str, session=None) -> int:
-        return await Item.find(
-            Item.user_id == PydanticObjectId(user_id),
-            Item.slug == slug,
+    async def get_last_own_slug_by_base(self, user_id: PydanticObjectId, base_slug: str, session=None) -> str | None:
+        pattern = f"^{re.escape(base_slug)}(-\\d+)?$"
+        item = await Item.find(
+            Item.user_id == user_id,
+            {"slug": {"$regex": pattern}},
             session=session,
-        ).count()
+        ).sort(-Item.id).limit(1).first_or_none()
+        return item.slug if item else None
 
     async def get_own_list(
         self,
-        user_id: str,
+        user_id: PydanticObjectId,
         skip: int = 0,
         limit: int = 20,
         filters: dict[str, Any] | None = None,
         session=None,
     ) -> tuple[int, list[Item]]:
         filters_list = self._build_filters(filters)
-        filters_list.append(Item.user_id == PydanticObjectId(user_id))
+        filters_list.append(Item.user_id == user_id)
         query = Item.find(*filters_list, session=session)
         total = await query.count()
         items = await query.skip(skip).limit(limit).to_list()
@@ -108,11 +110,11 @@ class ItemRepository:
         return item
 
     async def update_own_by_id(
-        self, user_id: str, id: str, data: dict[str, Any], session=None
+        self, user_id: PydanticObjectId, id: PydanticObjectId, data: dict[str, Any], session=None
     ) -> Item | None:
         item = await Item.find_one(
-            Item.user_id == PydanticObjectId(user_id),
-            Item.id == PydanticObjectId(id),
+            Item.user_id == user_id,
+            Item.id == id,
             session=session,
         )
         if item is None:
@@ -123,10 +125,10 @@ class ItemRepository:
         await item.save(session=session)
         return item
 
-    async def delete_own_by_id(self, user_id: str, id: str, session=None) -> None:
+    async def delete_own_by_id(self, user_id: PydanticObjectId, id: PydanticObjectId, session=None) -> None:
         item = await Item.find_one(
-            Item.user_id == PydanticObjectId(user_id),
-            Item.id == PydanticObjectId(id),
+            Item.user_id == user_id,
+            Item.id == id,
             session=session,
         )
         if item is not None:

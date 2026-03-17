@@ -13,6 +13,7 @@ class UserCreate(BaseModel):
     whatsapp_number: str | None = None
     address: str | None = None
     plan: UserPlan | None = None
+    qr_code: FileInput | None = None
     logo: FileInput | None = None
     business_name: str | None = None
     business_description: str | None = None

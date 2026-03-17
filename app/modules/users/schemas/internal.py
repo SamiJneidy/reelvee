@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import UserPlan, UserStatus, UserStep
 from app.shared.schemas.common import Link

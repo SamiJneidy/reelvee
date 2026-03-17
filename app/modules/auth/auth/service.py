@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from beanie import PydanticObjectId
 from fastapi import Request, Response
 
 from app.core.config import settings
@@ -122,7 +123,7 @@ class AuthService:
             raise UserNotFoundException()
         payload = PasswordResetToken(
             scope=TokenScope.RESET_PASSWORD,
-            sub=user.id,
+            sub=str(user.id),
         )
         reset_token = self._token_service.generate_password_reset_token(payload)
         reset_url = f"{settings.frontend_url}/reset-password?email={data.email}&token={reset_token}"
@@ -144,7 +145,7 @@ class AuthService:
         token_payload = self._token_service.decode_token(data.token)
         if token_payload.get("scope") != TokenScope.RESET_PASSWORD:
             raise PasswordResetNotAllowedException("Invalid Token")
-        if token_payload.get("sub") != user.id:
+        if token_payload.get("sub") != str(user.id):
             raise PasswordResetNotAllowedException("Invalid Token. Mismatch!")
         hashed = hash_password(data.new_password)
         await self._user_service.update_by_email(data.email, {"password": hashed}, session)
@@ -165,10 +166,9 @@ class AuthService:
         return UserInternal.model_validate(user)
 
     async def create_access_token(
-        self, request: Request, response: Response, user_id: str, set_cookie: bool = True
+        self, request: Request, response: Response, user_id: PydanticObjectId, set_cookie: bool = True
     ) -> str:
-        """Create access token. user_id is string (Beanie id)."""
-        payload = AccessToken(sub=user_id)
+        payload = AccessToken(sub=str(user_id))
         token = self._token_service.generate_access_token(payload)
         if set_cookie:
             await self.set_access_token_cookie(request, response, token)
@@ -194,17 +194,17 @@ class AuthService:
         self,
         request: Request,
         response: Response,
-        user_id: str,
+        user_id: PydanticObjectId,
         set_cookie: bool = True,
         family_id: str | None = None,
     ) -> str:
-        payload = RefreshToken(sub=user_id, family_id=family_id or str(uuid.uuid4()))
+        payload = RefreshToken(sub=str(user_id), family_id=family_id or str(uuid.uuid4()))
         token = self._token_service.generate_refresh_token(payload)
         await self._token_service.create_refresh_token(
             RefreshTokenCreate(
                 token_id=payload.jti,
                 family_id=payload.family_id,
-                user_id=user_id,
+                user_id=str(user_id),
                 expires_at=payload.exp,
             )
         )
@@ -230,9 +230,9 @@ class AuthService:
         return token
 
     async def create_sign_up_complete_token(
-        self, request: Request, response: Response, user_id: str, set_cookie: bool = True
+        self, request: Request, response: Response, user_id: PydanticObjectId, set_cookie: bool = True
     ) -> str:
-        payload = SignUpCompleteToken(sub=user_id)
+        payload = SignUpCompleteToken(sub=str(user_id))
         token = self._token_service.generate_sign_up_complete_token(payload)
         if set_cookie:
             await self.set_sign_up_complete_token_cookie(request, response, token)
@@ -268,7 +268,7 @@ class AuthService:
 
         jti = payload.get("jti")
         family_id = payload.get("family_id")
-        user_id = payload.get("sub")
+        user_id = PydanticObjectId(payload.get("sub"))
 
         if not jti or not family_id:
             raise InvalidTokenException()
@@ -302,5 +302,5 @@ class AuthService:
     async def get_user_from_token(self, token: str) -> UserInternal:
         """Resolve user from JWT."""
         payload = self._token_service.decode_token(token)
-        user_id = payload.get("sub")
+        user_id = PydanticObjectId(payload.get("sub"))
         return await self._user_service.get_by_id(user_id)

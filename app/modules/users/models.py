@@ -1,7 +1,5 @@
 from datetime import datetime
-
-from pydantic import BaseModel
-from beanie import Document, Indexed
+from beanie import Indexed
 
 from app.core.enums import UserPlan, UserStatus, UserStep
 from app.shared.schemas.common import Link

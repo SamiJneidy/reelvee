@@ -27,7 +27,7 @@ router = APIRouter(
 async def upload_file(
     body: PresignedURLRequest,
     storage_service: Annotated[StorageService, Depends(get_storage_service)],
-    ctx: RequestContext = Depends(get_request_context),
+    # ctx: RequestContext = Depends(get_request_context),
 ) -> SingleResponse[PresignedURLResponse]:
     data = await storage_service.generate_upload_url(
         path=body.path.value,
