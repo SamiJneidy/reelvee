@@ -117,8 +117,8 @@ class UserService:
         user_url = get_full_store_url(data.store_url)
         qr_code = await self.generate_qr_code(user_url, session)
         await self._repo.update_by_email(email, {"qr_code": qr_code}, session=session)
-
-        await self.save_logo(user.id, data.logo, session)
+        if data.logo:
+            await self.save_logo(user.id, data.logo, session)
         updated_user = await self.get_by_email(email)
         return SignUpCompleteResponse(user=UserResponse.model_validate(updated_user))
 
