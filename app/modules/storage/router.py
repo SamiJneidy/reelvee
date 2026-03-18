@@ -2,9 +2,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
-from app.core.context import RequestContext
-from app.core.enums import TempFileUploadPath
-from app.modules.auth.dependencies import get_request_context
 from app.modules.storage.dependencies import StorageService, get_storage_service
 from app.modules.storage.docs import StorageDocs
 from app.modules.storage.schemas import FileInput, PresignedURLRequest, PresignedURLResponse
@@ -27,7 +24,7 @@ router = APIRouter(
 async def upload_file(
     body: PresignedURLRequest,
     storage_service: Annotated[StorageService, Depends(get_storage_service)],
-    # ctx: RequestContext = Depends(get_request_context),
+    # current_user: CurrentUser = Depends(get_request_context),
 ) -> SingleResponse[PresignedURLResponse]:
     data = await storage_service.generate_upload_url(
         path=body.path.value,
