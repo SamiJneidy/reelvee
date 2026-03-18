@@ -7,7 +7,7 @@ from fastapi import status
 from pymongo.errors import DuplicateKeyError
 from beanie.exceptions import RevisionIdWasChanged
 from app.core.config import settings
-from app.core.context import RequestContext
+from app.core.context import CurrentUser
 from app.core.enums import PermanentFileUploadPath, TokenScope, UserStatus, UserStep
 from app.core.exceptions.exceptions import DuplicateKeyErrorException
 from app.core.security import verify_password
@@ -241,9 +241,9 @@ class UserService:
         await self._repo.update_by_id(user_id, {"logo": data}, session=session)
         return FileResponse.model_validate(data)
 
-    async def delete_logo(self, ctx: RequestContext, session=None) -> None:
-        await self._storage_service.delete_file(ctx.user.logo.key)
-        await self._repo.update_by_id(ctx.user.id, {"logo": None}, session=session)
+    async def delete_logo(self, current_user: CurrentUser, session=None) -> None:
+        await self._storage_service.delete_file(current_user.user.logo.key)
+        await self._repo.update_by_id(current_user.user.id, {"logo": None}, session=session)
 
     async def generate_qr_code(self, store_url: str, session=None) -> FileResponse:
         qr_code = QRCodeUtils.generate_qr_code(store_url)

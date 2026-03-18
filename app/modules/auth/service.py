@@ -23,6 +23,7 @@ from app.modules.auth.schemas.responses import (
     LoginResponse,
 )
 from app.modules.auth.otp.service import OTPService
+from app.modules.auth.tokens.exceptions import InvalidTokenException
 from app.modules.auth.tokens.schemas import AccessToken, PasswordResetToken, RefreshToken, RefreshTokenCreate, SignUpCompleteToken
 from app.modules.auth.tokens.service import TokenService
 from app.modules.users.exceptions import (
@@ -259,7 +260,6 @@ class AuthService:
         self, request: Request, response: Response, refresh_token: str, set_cookie: bool = True
     ) -> None:
         """Rotate refresh token and issue a new access token."""
-        from app.modules.auth.tokens.exceptions import InvalidTokenException
 
         payload = self._token_service.decode_token(refresh_token)
 
@@ -273,10 +273,12 @@ class AuthService:
         if not jti or not family_id:
             raise InvalidTokenException()
 
-        record = await self._token_service.get_refresh_token_by_jti(jti)
+        db_refresh_token = await self._token_service.get_refresh_token_by_jti(jti)
 
-        if not record or record.is_revoked:
+        if not db_refresh_token or db_refresh_token.is_revoked:
             await self._token_service.revoke_refresh_token_family(family_id)
+            response.delete_cookie("access_token")
+            response.delete_cookie("refresh_token")
             raise InvalidTokenException()
 
         # Invalidate the consumed token before issuing a new one

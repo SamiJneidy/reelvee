@@ -2,7 +2,7 @@ from typing import Any
 from beanie import PydanticObjectId
 from slugify import slugify
 
-from app.core.context import RequestContext
+from app.core.context import CurrentUser
 from app.core.enums import PermanentFileUploadPath, TempFileUploadPath
 from app.modules.storage import StorageService
 from app.modules.items.exceptions import ItemNotFoundException
@@ -63,38 +63,38 @@ class ItemService:
     # Owner-scoped (context required)
     # -----------------------------------------------------------------
 
-    async def get_own_by_id(self, ctx: RequestContext, id: PydanticObjectId) -> ItemInternal:
-        item = await self._repo.get_own_by_id(ctx.user.id, id)
+    async def get_own_by_id(self, current_user: CurrentUser, id: PydanticObjectId) -> ItemInternal:
+        item = await self._repo.get_own_by_id(current_user.user.id, id)
         if not item:
             raise ItemNotFoundException()
         return ItemInternal.model_validate(item)
 
-    async def get_own_by_slug(self, ctx: RequestContext, slug: str) -> ItemInternal:
-        item = await self._repo.get_own_by_slug(ctx.user.id, slug)
+    async def get_own_by_slug(self, current_user: CurrentUser, slug: str) -> ItemInternal:
+        item = await self._repo.get_own_by_slug(current_user.user.id, slug)
         if not item:
             raise ItemNotFoundException()
         return ItemInternal.model_validate(item)
 
     async def get_own_list(
         self,
-        ctx: RequestContext,
+        current_user: CurrentUser,
         skip: int = 0,
         limit: int = 20,
         filters: ItemFilters | None = None,
     ) -> tuple[int, list[ItemResponse]]:
         filter_dict = filters.model_dump(exclude_none=True) if filters else None
         total, items = await self._repo.get_own_list(
-            user_id=ctx.user.id,
+            user_id=current_user.user.id,
             skip=skip,
             limit=limit,
             filters=filter_dict,
         )
         return total, [ItemResponse.model_validate(p) for p in items]
 
-    async def create(self, ctx: RequestContext, payload: ItemCreate, session=None) -> ItemInternal:
+    async def create(self, current_user: CurrentUser, payload: ItemCreate, session=None) -> ItemInternal:
         data = payload.model_dump()
-        data["slug"] = await self._generate_slug(ctx.user.id, payload.name)
-        data["user_id"] = ctx.user.id
+        data["slug"] = await self._generate_slug(current_user.user.id, payload.name)
+        data["user_id"] = current_user.user.id
         if payload.thumbnail:
             thumbnail = await self.save_thumbnail(payload.thumbnail)
             data["thumbnail"] = thumbnail.model_dump()
@@ -106,43 +106,43 @@ class ItemService:
 
     async def update_own_by_id(
         self,
-        ctx: RequestContext,
+        current_user: CurrentUser,
         id: PydanticObjectId,
         data: ItemUpdate | ItemUpdateInternal,
         session=None,
     ) -> ItemInternal:
 
-        item = await self.get_own_by_id(ctx, id)
+        item = await self.get_own_by_id(current_user, id)
         new_images = data.images
         new_thumbnail = data.thumbnail
         update_data = data.model_dump(exclude_none=True, exclude={"images"})
     
-        updated_item = await self._repo.update_own_by_id(ctx.user.id, id, update_data, session=session)
+        updated_item = await self._repo.update_own_by_id(current_user.user.id, id, update_data, session=session)
         
         if new_thumbnail:
             new_thumbnail = await self.save_thumbnail(new_thumbnail)
-            await self.delete_thumbnail(ctx, id, session=session)
-            updated_item = await self._repo.update_own_by_id(ctx.user.id, id, {"thumbnail": new_thumbnail}, session=session)
+            await self.delete_thumbnail(current_user, id, session=session)
+            updated_item = await self._repo.update_own_by_id(current_user.user.id, id, {"thumbnail": new_thumbnail}, session=session)
 
         if new_images:
             new_images = await self.save_images(new_images)
             await self.delete_deprecated_images(new_images, item.images)
-            updated_item = await self._repo.update_own_by_id(ctx.user.id, id, {"images": new_images}, session=session)
+            updated_item = await self._repo.update_own_by_id(current_user.user.id, id, {"images": new_images}, session=session)
         
         return ItemInternal.model_validate(updated_item)
 
-    async def delete_thumbnail(self, ctx: RequestContext, id: PydanticObjectId, session=None) -> None:
-        item = await self.get_own_by_id(ctx, id)
+    async def delete_thumbnail(self, current_user: CurrentUser, id: PydanticObjectId, session=None) -> None:
+        item = await self.get_own_by_id(current_user, id)
         if not item.thumbnail:
             return None
         await self._storage_service.delete_file(item.thumbnail.key)
-        await self._repo.update_own_by_id(ctx.user.id, id, {"thumbnail": None}, session=session)
+        await self._repo.update_own_by_id(current_user.user.id, id, {"thumbnail": None}, session=session)
 
-    async def delete_own_by_id(self, ctx: RequestContext, id: PydanticObjectId, session=None) -> None:
-        item = await self._repo.get_own_by_id(ctx.user.id, id, session=session)
+    async def delete_own_by_id(self, current_user: CurrentUser, id: PydanticObjectId, session=None) -> None:
+        item = await self._repo.get_own_by_id(current_user.user.id, id, session=session)
         if not item:
             raise ItemNotFoundException()
-        await self._repo.delete_own_by_id(ctx.user.id, id, session=session)
+        await self._repo.delete_own_by_id(current_user.user.id, id, session=session)
     
     async def save_thumbnail(self, file: FileInput) -> FileResponse:
         if file.url:

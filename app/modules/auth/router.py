@@ -3,7 +3,7 @@ from app.modules.auth.schemas.responses import CurrentSessionResponse, LoginResp
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.core.context import RequestContext
+from app.core.context import CurrentUser
 from app.core.database import get_session
 from app.modules.auth.schemas.requests import SignUpRequest
 from app.modules.auth.otp.schemas.requests import SendEmailVerificationOTPRequest

@@ -6,7 +6,7 @@ from app.modules.users.schemas.responses import SignUpCompleteResponse, UserResp
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from typing import Annotated
 
-from app.core.context import RequestContext
+from app.core.context import CurrentUser
 from app.core.database import get_session
 from app.modules.auth.dependencies import get_auth_service, get_request_context, get_user_from_sign_up_complete_token
 from app.shared.schemas import SingleResponse
@@ -60,10 +60,10 @@ async def sign_up_complete(
 async def request_email_change(
     body: RequestEmailChangeRequest,
     user_service: UserService = Depends(get_user_service),
-    ctx: RequestContext = Depends(get_request_context),
+    current_user: CurrentUser = Depends(get_request_context),
     session = Depends(get_session),
 ) -> SuccessResponse:
-    await user_service.request_email_change(ctx.user.id, body, session)
+    await user_service.request_email_change(current_user.user.id, body, session)
     return SuccessResponse(detail="Email change link sent successfully")
 
 
@@ -105,11 +105,11 @@ async def confirm_email_change(
 async def update_current_user(
     body: UserUpdate,
     user_service: UserService = Depends(get_user_service),
-    ctx: RequestContext = Depends(get_request_context),
+    current_user: CurrentUser = Depends(get_request_context),
     session = Depends(get_session),
 ) -> SingleResponse[UserResponse]:
     data = await user_service.update_by_email(
-        ctx.user.email,
+        current_user.user.email,
         body.model_dump(exclude_none=True,),
         session=session,
     )
@@ -128,10 +128,10 @@ async def update_current_user(
 )
 async def delete_current_user(
     user_service: Annotated[UserService, Depends(get_user_service)],
-    ctx: RequestContext = Depends(get_request_context),
+    current_user: CurrentUser = Depends(get_request_context),
     session = Depends(get_session),
 ) -> None:
-    await user_service.delete_user(ctx.user.email, session=session)
+    await user_service.delete_user(current_user.user.email, session=session)
 
 
 @router.delete(
@@ -143,10 +143,10 @@ async def delete_current_user(
 )
 async def delete_logo(
     user_service: UserService = Depends(get_user_service),
-    ctx: RequestContext = Depends(get_request_context),
+    current_user: CurrentUser = Depends(get_request_context),
     session = Depends(get_session),
 ) -> None:
-    await user_service.delete_logo(ctx, session)
+    await user_service.delete_logo(current_user, session)
 
 
 @router.delete(

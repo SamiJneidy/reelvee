@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, Request, status
 from typing import Annotated
 
-from app.core.context import RequestContext
+from app.core.context import CurrentUser
 from app.modules.auth.schemas.responses import CurrentSessionResponse
 from app.modules.auth.service import AuthService
 from app.modules.auth.repository import AuthRepository
@@ -48,13 +48,13 @@ async def get_current_session(
 async def get_request_context(
     request: Request,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> RequestContext:
+) -> CurrentUser:
     """Get request context."""
     token = request.cookies.get("access_token")
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token was not found in cookies")
     user = await auth_service.get_user_from_token(token)
-    return RequestContext(user=user)
+    return CurrentUser(user=user)
 
 
 async def get_user_from_sign_up_complete_token(

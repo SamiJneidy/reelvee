@@ -2,7 +2,7 @@ import math
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, status
 
-from app.core.context import RequestContext
+from app.core.context import CurrentUser
 from app.core.database import get_session
 from app.shared.schemas import SingleResponse
 from app.shared.schemas.pagination import Pagination, PaginatedResponse
@@ -35,9 +35,9 @@ router = APIRouter(
 async def get_item_by_id(
     item_id: PydanticObjectId,
     item_service: ItemService = Depends(get_item_service),
-    ctx: RequestContext = Depends(get_request_context),
+    current_user: CurrentUser = Depends(get_request_context),
 ) -> SingleResponse[ItemResponse]:
-    item = await item_service.get_own_by_id(ctx, item_id)
+    item = await item_service.get_own_by_id(current_user, item_id)
     return SingleResponse[ItemResponse](data=item)
 
 
@@ -51,11 +51,11 @@ async def get_item_by_id(
 async def list_items(
     pagination: Pagination = Depends(),
     filters: ItemFilters = Depends(),
-    ctx: RequestContext = Depends(get_request_context),
+    current_user: CurrentUser = Depends(get_request_context),
     item_service: ItemService = Depends(get_item_service),
 ) -> PaginatedResponse[ItemResponse]:
     total, items = await item_service.get_own_list(
-        ctx=ctx,
+        current_user=current_user,
         skip=pagination.skip,
         limit=pagination.limit,
         filters=filters,
@@ -82,10 +82,10 @@ async def list_items(
 async def create_item(
     body: ItemCreate,
     item_service: ItemService = Depends(get_item_service),
-    ctx: RequestContext = Depends(get_request_context),
+    current_user: CurrentUser = Depends(get_request_context),
     session = Depends(get_session),
 ) -> SingleResponse[ItemResponse]:
-    item = await item_service.create(ctx, body, session)
+    item = await item_service.create(current_user, body, session)
     return SingleResponse[ItemResponse](data=item)
 
 
@@ -103,11 +103,11 @@ async def update_item(
     item_id: PydanticObjectId,
     body: ItemUpdate,
     item_service: ItemService = Depends(get_item_service),
-    ctx: RequestContext = Depends(get_request_context),
+    current_user: CurrentUser = Depends(get_request_context),
     session = Depends(get_session),
 ) -> SingleResponse[ItemResponse]:
     item = await item_service.update_own_by_id(
-        ctx,
+        current_user,
         item_id,
         body,
         session,
@@ -128,10 +128,10 @@ async def update_item(
 async def delete_item(
     item_id: PydanticObjectId,
     item_service: ItemService = Depends(get_item_service),
-    ctx: RequestContext = Depends(get_request_context),
+    current_user: CurrentUser = Depends(get_request_context),
     session = Depends(get_session),
 ) -> None:
-    await item_service.delete_own_by_id(ctx, item_id, session)
+    await item_service.delete_own_by_id(current_user, item_id, session)
 
 
 @router.delete(
@@ -144,7 +144,7 @@ async def delete_item(
 async def delete_thumbnail(
     item_id: PydanticObjectId,
     item_service: ItemService = Depends(get_item_service),
-    ctx: RequestContext = Depends(get_request_context),
+    current_user: CurrentUser = Depends(get_request_context),
     session = Depends(get_session),
 ) -> None:
-    await item_service.delete_thumbnail(ctx, item_id, session)
+    await item_service.delete_thumbnail(current_user, item_id, session)
