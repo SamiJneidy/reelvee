@@ -2,10 +2,10 @@ from fastapi import Depends, HTTPException, Request, status
 from typing import Annotated
 
 from app.core.context import RequestContext
-from app.modules.auth.auth.schemas.responses import CurrentSessionResponse
-from app.modules.auth.auth.service import AuthService
-from app.modules.auth.auth.repository import AuthRepository
-from app.modules.auth.otp.depenencies import OTPService, get_otp_service
+from app.modules.auth.schemas.responses import CurrentSessionResponse
+from app.modules.auth.service import AuthService
+from app.modules.auth.repository import AuthRepository
+from app.modules.auth.otp.dependencies import OTPService, get_otp_service
 from app.modules.auth.tokens.dependencies import TokenService, get_token_service
 from app.modules.users.dependencies import UserService, get_user_service
 from app.modules.users.schemas import UserResponse

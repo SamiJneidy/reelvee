@@ -1,4 +1,4 @@
-from app.modules.auth.auth.service import AuthService
+from app.modules.auth.service import AuthService
 from app.modules.users.schemas.requests import ChangeEmailRequest, RequestEmailChangeRequest, SignUpCompleteRequest
 from app.modules.users.schemas.responses import SignUpCompleteResponse, UserResponse
 
@@ -8,7 +8,7 @@ from typing import Annotated
 
 from app.core.context import RequestContext
 from app.core.database import get_session
-from app.modules.auth.auth.dependencies import get_auth_service, get_request_context, get_user_from_sign_up_complete_token
+from app.modules.auth.dependencies import get_auth_service, get_request_context, get_user_from_sign_up_complete_token
 from app.shared.schemas import SingleResponse
 from app.shared.schemas.responses import SuccessResponse
 from .dependencies import UserService, get_user_service

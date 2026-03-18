@@ -6,7 +6,7 @@ from app.core.context import RequestContext
 from app.core.database import get_session
 from app.shared.schemas import SingleResponse
 from app.shared.schemas.pagination import Pagination, PaginatedResponse
-from app.modules.auth.auth.dependencies import get_request_context
+from app.modules.auth.dependencies import get_request_context
 from app.modules.items.dependencies import ItemService, get_item_service
 from app.modules.items.schemas import (
     ItemCreate,

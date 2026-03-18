@@ -1,11 +1,11 @@
 from app.modules.users.schemas.responses import UserResponse
-from app.modules.auth.auth.schemas.responses import CurrentSessionResponse, LoginResponse, VerifyEmailResponse
+from app.modules.auth.schemas.responses import CurrentSessionResponse, LoginResponse, VerifyEmailResponse
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.context import RequestContext
 from app.core.database import get_session
-from app.modules.auth.auth.schemas.requests import SignUpRequest
+from app.modules.auth.schemas.requests import SignUpRequest
 from app.modules.auth.otp.schemas.requests import SendEmailVerificationOTPRequest
 from app.shared.schemas import SingleResponse
 from app.modules.users.schemas import UserResponse
@@ -85,7 +85,6 @@ async def login(
     session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SingleResponse[LoginResponse]:
-    
     data = await auth_service.login(body, session)
     
     if not data.user.is_email_verified:

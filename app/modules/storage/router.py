@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from app.core.context import RequestContext
 from app.core.enums import TempFileUploadPath
-from app.modules.auth.auth.dependencies import get_request_context
+from app.modules.auth.dependencies import get_request_context
 from app.modules.storage.dependencies import StorageService, get_storage_service
 from app.modules.storage.docs import StorageDocs
 from app.modules.storage.schemas import FileInput, PresignedURLRequest, PresignedURLResponse

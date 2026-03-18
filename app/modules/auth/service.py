@@ -6,11 +6,11 @@ from fastapi import Request, Response
 from app.core.config import settings
 from app.core.enums import OTPUsage, UserStatus, TokenScope, UserStep
 from app.core.security import hash_password, verify_password
-from app.modules.auth.auth.exceptions import (
+from app.modules.auth.exceptions import (
     InvalidCredentialsException,
     PasswordResetNotAllowedException,
 )
-from app.modules.auth.auth.schemas.requests import (
+from app.modules.auth.schemas.requests import (
     LoginRequest,
     RequestPasswordResetRequest,
     SignUpRequest,
@@ -19,7 +19,7 @@ from app.modules.auth.auth.schemas.requests import (
 )
 from app.modules.auth.otp.exceptions import InvalidOTPException
 from app.modules.auth.otp.schemas import SendEmailVerificationOTPRequest
-from app.modules.auth.auth.schemas.responses import (
+from app.modules.auth.schemas.responses import (
     LoginResponse,
 )
 from app.modules.auth.otp.service import OTPService
@@ -37,7 +37,7 @@ from app.modules.users.schemas import UserResponse
 from app.modules.users.schemas.internal import UserInternal
 from app.modules.users.service import UserService
 from app.modules.users.schemas import UserCreate
-from app.modules.auth.auth.repository import AuthRepository
+from app.modules.auth.repository import AuthRepository
 from app.shared.services import EmailService
 
 class AuthService:

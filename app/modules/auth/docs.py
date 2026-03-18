@@ -5,7 +5,7 @@ from fastapi import status
 
 from app.shared.utils.docs import error_response
 
-from app.modules.auth.auth.exceptions import (
+from app.modules.auth.exceptions import (
     InvalidCredentialsException,
     PasswordResetNotAllowedException,
 )
