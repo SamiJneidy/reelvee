@@ -4,9 +4,6 @@ from .requests import (
     RequestPasswordResetRequest,
     SignUpRequest,
     VerifyEmailRequest,
-    RequestPasswordResetRequest,
-    SignUpRequest,
-    VerifyEmailRequest,
 )
 from .responses import (
     CurrentSessionResponse,

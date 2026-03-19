@@ -63,7 +63,7 @@ async def request_email_change(
     current_user: CurrentUser = Depends(get_request_context),
     session = Depends(get_session),
 ) -> SuccessResponse:
-    await user_service.request_email_change(current_user.user.id, body, session)
+    await user_service.request_email_change(current_user, body, session)
     return SuccessResponse(detail="Email change link sent successfully")
 
 

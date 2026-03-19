@@ -162,14 +162,14 @@ class UserService:
         return UserInternal.model_validate(user)
 
     async def request_email_change(
-        self, user_id: PydanticObjectId, data: RequestEmailChangeRequest, session = None
+        self, current_user: CurrentUser, data: RequestEmailChangeRequest, session = None
     ) -> None:
-        user = await self.get_by_id_in_db(user_id)
+        user = await self.get_by_id_in_db(current_user.user.id)
         if not verify_password(data.password, user.password):
             raise EmailChangeNotAllowedException(detail="Incorrect password")
         payload = EmailChangeToken(
             scope=TokenScope.EMAIL_CHANGE,
-            sub=str(user_id),
+            sub=str(current_user.user.id),
             current_email=user.email,
             new_email=data.new_email,
         )
