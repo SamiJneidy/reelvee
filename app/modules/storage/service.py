@@ -6,7 +6,7 @@ import uuid
 
 from app.core.config import settings
 from app.modules.storage.exceptions import FileDeleteException, FileMoveException, FileUploadException
-from app.modules.storage.schemas import FileInput, FileResponse, PresignedURLResponse
+from app.modules.storage.schemas import FileInput, FileResponse, PresignedURLRequest, PresignedURLResponse
 from app.shared.utils.file_helper import FileHelper
 
 class StorageService:
@@ -20,6 +20,17 @@ class StorageService:
         """Get the URL of a file in S3"""
         return f"https://{settings.aws_bucket}.s3.amazonaws.com/{file_key}"
 
+
+    async def generate_upload_urls(self, files: list[PresignedURLRequest]) -> list[PresignedURLResponse]:
+        results = []
+        for file in files:
+            result = await self.generate_upload_url(
+                path=file.path.value,
+                filename=file.filename,
+                content_type=file.content_type,
+            )
+            results.append(result)
+        return results
 
     async def generate_upload_url(self, path: str, filename: str, content_type: str = None) -> PresignedURLResponse:
         extension = FileHelper.get_extension(filename)

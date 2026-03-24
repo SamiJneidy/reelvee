@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from app.modules.storage.dependencies import StorageService, get_storage_service
 from app.modules.storage.docs import StorageDocs
 from app.modules.storage.schemas import FileInput, PresignedURLRequest, PresignedURLResponse
-from app.shared.schemas import SingleResponse
+from app.shared.schemas import ListResponse, SingleResponse
 
 
 router = APIRouter(
@@ -16,22 +16,18 @@ router = APIRouter(
 
 @router.post(
     "/upload",
-    response_model=SingleResponse[PresignedURLResponse],
+    response_model=ListResponse[PresignedURLResponse],
     summary=StorageDocs.UploadFile.summary,
     description=StorageDocs.UploadFile.description,
     responses=StorageDocs.UploadFile.responses,
 )
 async def upload_file(
-    body: PresignedURLRequest,
+    body: list[PresignedURLRequest],
     storage_service: Annotated[StorageService, Depends(get_storage_service)],
     # current_user: CurrentUser = Depends(get_request_context),
-) -> SingleResponse[PresignedURLResponse]:
-    data = await storage_service.generate_upload_url(
-        path=body.path.value,
-        filename=body.filename,
-        content_type=body.content_type,
-    )
-    return SingleResponse[PresignedURLResponse](data=data)
+) -> ListResponse[PresignedURLResponse]:
+    data = await storage_service.generate_upload_urls(body)
+    return ListResponse[PresignedURLResponse](data=data)
 
 @router.post(
     "/upload/simulate-frontend",
