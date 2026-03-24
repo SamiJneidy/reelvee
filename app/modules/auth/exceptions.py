@@ -1,15 +1,6 @@
 from fastapi import status
 
 from app.core.exceptions.exceptions import BaseAppException
-from app.modules.users.exceptions import (
-    UserAlreadyExistsException,
-    UserBlockedException,
-    UserDisabledException,
-    UserNotActiveException,
-    UserNotFoundException,
-    UserNotVerifiedException,
-)
-
 
 class PasswordResetNotAllowedException(BaseAppException):
     detail = (

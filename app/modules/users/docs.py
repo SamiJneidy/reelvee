@@ -60,8 +60,7 @@ class UserDocs:
     class DeleteOwnLogo:
         summary = "Delete current user logo"
         description = (
-            "Deletes the authenticated user's logo from storage and "
-            "clears the logo field on their profile."
+            "Deletes the user's logo from storage and "
         )
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),

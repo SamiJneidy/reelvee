@@ -6,6 +6,7 @@ from app.modules.items.routers import (
     private_router as items_private_router,
 )
 from app.modules.storage.router import router as storage_router
+from app.modules.categories.router import router as categories_router
 
 router = APIRouter(
     prefix="/v1",
@@ -16,3 +17,4 @@ router.include_router(users_router)
 router.include_router(items_public_router)
 router.include_router(items_private_router)
 router.include_router(storage_router)
+router.include_router(categories_router)

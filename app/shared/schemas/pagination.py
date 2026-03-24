@@ -13,7 +13,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
     limit: int | None = None
 
 class Pagination(BaseModel):
-    page: int
+    page: int = Field(default=1, ge=1)
     limit: int = Field(default=10, ge=1, le=100)
 
     @property
