@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from beanie import PydanticObjectId
 from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import ItemStatus, ItemType
@@ -22,7 +23,7 @@ class ItemUpdateInternal(BaseModel):
     cost: float | None = None
     thumbnail: FileInput | None = None
     images: list[FileInput] | None = None
-    category: str | None = None
+    categories: list[PydanticObjectId] | None = None
     tags: list[str] | None = None
     status: ItemStatus | None = None
     visibility: bool | None = None

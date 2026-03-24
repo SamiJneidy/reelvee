@@ -1,3 +1,4 @@
+from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
 
 from app.core.enums import ItemStatus, ItemType
@@ -11,7 +12,7 @@ class ItemCreate(BaseModel):
     cost: float | None = Field(None, ge=0, description="Item cost")
     thumbnail: FileInput | None = Field(None, description="Item thumbnail")
     images: list[FileInput] = Field([], description="Item images")
-    category: str | None = Field(None, min_length=1, description="Item category")
+    categories: list[PydanticObjectId] = Field([], description="Item categories")
     tags: list[str] = Field([], description="Item tags")
     status: ItemStatus
     visibility: bool
@@ -26,7 +27,7 @@ class ItemUpdate(BaseModel):
     cost: float | None = None
     thumbnail: FileInput | None = Field(None, description="Item thumbnail")
     images: list[FileInput] | None = None
-    category: str | None = Field(None, min_length=1)
+    categories: list[PydanticObjectId] | None = None
     tags: list[str] | None = None
     status: ItemStatus | None = None
     visibility: bool | None = None

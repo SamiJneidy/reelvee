@@ -5,6 +5,7 @@ from fastapi import status
 
 from app.shared.utils.docs import error_response
 
+from app.modules.categories.exceptions import CategoryNotFoundException
 from app.modules.auth.tokens.exceptions import InvalidTokenException
 from app.modules.items.exceptions import ItemNotFoundException
 from app.modules.storage.exceptions import FileDeleteException
@@ -22,10 +23,11 @@ class ItemDocs:
         summary = "List my items"
         description = (
             "Returns a paginated list of the authenticated user's items. "
-            "Optional filters: type, name, category, status, visibility, slug."
+            "Optional filters: type, name, category_id, status, visibility, slug."
         )
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
+            status.HTTP_404_NOT_FOUND: error_response(CategoryNotFoundException),
         }
 
     class GetOwnItem:
@@ -33,7 +35,7 @@ class ItemDocs:
         description = "Returns a single item by ID. Only items owned by the authenticated user."
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
-            status.HTTP_404_NOT_FOUND: error_response(ItemNotFoundException),
+            status.HTTP_404_NOT_FOUND: error_response(ItemNotFoundException, CategoryNotFoundException),
         }
 
     class CreateItem:
@@ -83,7 +85,7 @@ class ItemPublicDocs:
         summary = "List store items"
         description = (
             "Returns a paginated list of items for a store, by store URL. "
-            "Used for the public storefront. Optional filters: type, name, category, status, visibility, slug."
+            "Used for the public storefront. Optional filters: type, name, category_id, status, visibility, slug."
         )
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_404_NOT_FOUND: error_response(UserNotFoundException),

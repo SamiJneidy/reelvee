@@ -19,9 +19,9 @@ class ItemRepository:
             filters_list.append(
                 {"name": {"$regex": re.escape(filters["name"]), "$options": "i"}}
             )
-        if filters.get("category"):
+        if filters.get("category_id"):
             filters_list.append(
-                {"category": {"$regex": re.escape(filters["category"]), "$options": "i"}}
+                {"categories": filters["category_id"]}
             )
         if filters.get("slug"):
             filters_list.append(

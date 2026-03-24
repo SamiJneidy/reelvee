@@ -1,3 +1,4 @@
+from beanie import PydanticObjectId
 from pydantic import BaseModel
 
 from app.core.enums import ItemStatus, ItemType
@@ -12,7 +13,7 @@ class ItemBase(BaseModel):
     cost: float | None = None
     thumbnail: FileResponse | None = None
     images: list[FileResponse] = []
-    category: str | None = None
+    categories: list[PydanticObjectId] = []
     tags: list[str] = []
     status: ItemStatus
     visibility: bool

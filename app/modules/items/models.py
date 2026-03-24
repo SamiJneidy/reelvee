@@ -6,7 +6,6 @@ from app.modules.users.models import User
 from app.shared.models import BaseDocument
 from app.modules.storage.models import File
 
-
 class ItemAttribute(BaseModel):
     name: str
     value: str
@@ -18,7 +17,7 @@ class Item(BaseDocument):
     cost: float | None = None
     thumbnail: File | None = None
     images: list[File] = []
-    category: str | None = None
+    categories: list[PydanticObjectId] = []
     tags: list[str] = []
     status: ItemStatus
     visibility: bool
