@@ -83,10 +83,45 @@ class PermanentFileUploadPath(str, Enum):
 
 class RecordSource(str, Enum):
     WEB      = "web"       # submitted via public web storefront
-    # APP      = "app"       # submitted via mobile app (future)
+    APP      = "app"       # submitted via mobile app (future)
     INTERNAL = "internal"  # created manually by store owner via dashboard
 
 
 class CustomerStatus(str, Enum):
     ACTIVE  = "active"
     BLOCKED = "blocked"
+
+
+class OrderStatus(str, Enum):
+    NEW        = "new"
+    SEEN       = "seen"
+    CONTACTED  = "contacted"
+    CONFIRMED  = "confirmed"
+    PROCESSING = "processing"
+    COMPLETED  = "completed"
+    CANCELLED  = "cancelled"
+    IGNORED    = "ignored"
+
+
+class DeliveryStatus(str, Enum):
+    PENDING   = "pending"
+    PREPARING = "preparing"
+    SHIPPED   = "shipped"
+    DELIVERED = "delivered"
+    RETURNED  = "returned"
+
+
+class PaymentMethod(str, Enum):
+    CASH          = "cash"
+    BANK_TRANSFER = "bank_transfer"
+    CREDIT_CARD   = "credit_card"
+    MOBILE_WALLET = "mobile_wallet"
+    CHEQUE        = "cheque"
+    OTHER         = "other"
+
+
+class PaymentStatus(str, Enum):
+    UNPAID   = "unpaid"
+    PARTIAL  = "partial"
+    PAID     = "paid"
+    REFUNDED = "refunded"
