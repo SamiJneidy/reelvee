@@ -79,3 +79,14 @@ class PermanentFileUploadPath(str, Enum):
     ITEM_IMAGE     = "uploads/items/images"
     USER_LOGO      = "uploads/users/logos"
     USER_QR_CODE   = "uploads/users/qr_codes"
+
+
+class RecordSource(str, Enum):
+    WEB      = "web"       # submitted via public web storefront
+    # APP      = "app"       # submitted via mobile app (future)
+    INTERNAL = "internal"  # created manually by store owner via dashboard
+
+
+class CustomerStatus(str, Enum):
+    ACTIVE  = "active"
+    BLOCKED = "blocked"
