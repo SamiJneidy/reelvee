@@ -10,13 +10,16 @@ from .base import OrderBase
 
 
 class OrderInternal(OrderBase, BaseModelWithId, TimeMixin):
+    is_read: bool
+    source: RecordSource
+    status: OrderStatus
     model_config = ConfigDict(from_attributes=True)
 
 
 class OrderUpdateInternal(BaseModel):
     item_id: PydanticObjectId | None = None
     item_price: float | None = None
-    quantity: int | None = None
+    quantity: float | None = None
     total: float | None = None
     total_cost: float | None = None
     payment: PaymentDetails | None = None

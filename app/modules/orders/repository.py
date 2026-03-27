@@ -2,12 +2,15 @@ from typing import Any
 
 from beanie import PydanticObjectId
 
+from app.modules.customers.models import Customer
 from app.modules.orders.models import Order
 
 
 class OrderRepository:
 
-    def _build_filters(self, filters: dict[str, Any] | None = None) -> list:
+    def _build_filter_list(
+        self, filters: dict[str, Any] | None = None
+    ) -> list:
         filters = filters or {}
         filters_list = []
         if filters.get("status") is not None:
@@ -23,6 +26,9 @@ class OrderRepository:
         if filters.get("delivery_status") is not None:
             filters_list.append(Order.delivery_status == filters["delivery_status"])
         return filters_list
+
+    def _deserialize_order(self, raw: dict[str, Any]) -> Order:
+        return Order.model_validate(raw)
 
     async def get_by_id(
         self, user_id: PydanticObjectId, id: PydanticObjectId, session=None
@@ -41,11 +47,40 @@ class OrderRepository:
         filters: dict[str, Any] | None = None,
         session=None,
     ) -> tuple[int, list[Order]]:
-        filters_list = self._build_filters(filters)
+        filters_list = self._build_filter_list(filters)
         filters_list.append(Order.user_id == user_id)
-        query = Order.find(*filters_list, session=session)
-        total = await query.count()
-        orders = await query.sort(-Order.created_at).skip(skip).limit(limit).to_list()
+        # Count on the raw collection — no join needed, hits the index directly.
+        total = await Order.find(*filters_list, session=session).count()
+
+        # Paginate first, then join — $lookup only runs on the page (e.g. 10
+        # docs) instead of all matching orders.
+        pipeline = [
+            {"$match": filters},
+            {"$sort": {"created_at": -1}},
+            {"$skip": skip},
+            {"$limit": limit},
+            {"$lookup": {
+                "from": "customers",
+                "localField": "customer_id",
+                "foreignField": "_id",
+                "as": "customer",
+            }},
+            {"$lookup": {
+                "from": "items",
+                "localField": "item_id",
+                "foreignField": "_id",
+                "as": "item",
+            }},
+            {"$unwind": {"path": "$item", "preserveNullAndEmptyArrays": True}},
+            {"$unwind": {"path": "$customer", "preserveNullAndEmptyArrays": True}},
+        ]
+        # Beanie's aggregate() wrapper tries to await Motor's aggregate cursor,
+        # which is not a coroutine in Motor 3.x. Use Motor directly instead:
+        # collection.aggregate() returns a cursor synchronously, and its
+        # .to_list() is the awaitable part.
+        cursor = Order.get_pymongo_collection().aggregate(pipeline)
+        raw_orders = await cursor.to_list(length=None)
+        orders = [self._deserialize_order(raw) for raw in raw_orders]
         return total, orders
 
     async def count_unread(self, user_id: PydanticObjectId, session=None) -> int:

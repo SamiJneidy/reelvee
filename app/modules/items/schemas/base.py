@@ -16,6 +16,6 @@ class ItemBase(BaseModel):
     categories: list[PydanticObjectId] = []
     tags: list[str] = []
     status: ItemStatus
-    visibility: bool
+    is_visible: bool
     attributes: list[ItemAttribute] = []
     type: ItemType

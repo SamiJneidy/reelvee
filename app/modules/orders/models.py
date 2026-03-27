@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from beanie import PydanticObjectId
+from beanie import PydanticObjectId, Link
 from pydantic import BaseModel
 from pymongo import ASCENDING, DESCENDING, IndexModel
 
@@ -11,6 +11,8 @@ from app.core.enums import (
     PaymentStatus,
     RecordSource,
 )
+from app.modules.customers.models import Customer
+from app.modules.items.models import Item
 from app.shared.models.base import BaseDocument
 
 
@@ -26,8 +28,10 @@ class PaymentDetails(BaseModel):
 class Order(BaseDocument):
     # Relationships
     user_id: PydanticObjectId
-    customer_id: PydanticObjectId
+    customer_id: PydanticObjectId | None = None
     item_id: PydanticObjectId
+    customer: Link[Customer] | None = None
+    item: Link[Item] | None = None
 
     # Pricing
     item_price: float | None = None     # listed price at order time, for reference
@@ -36,7 +40,7 @@ class Order(BaseDocument):
     total_cost: float | None = None     # expense for this order
 
     # Payment
-    payment: PaymentDetails
+    payment: PaymentDetails | None = None
 
     # Workflow — source has no default, always set explicitly by the service
     source: RecordSource
@@ -47,8 +51,8 @@ class Order(BaseDocument):
     customer_message: str | None = None
     address: str | None = None
     delivery_status: DeliveryStatus | None = None
-    owner_notes: str | None = None
-
+    notes: str | None = None
+    
     class Settings:
         name = "orders"
         indexes = [

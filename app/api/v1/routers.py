@@ -8,7 +8,10 @@ from app.modules.items.routers import (
 from app.modules.storage.router import router as storage_router
 from app.modules.categories.router import router as categories_router
 from app.modules.customers.router import router as customers_router
-from app.modules.orders.router import router as orders_router
+from app.modules.orders.routers import (
+    public_router as orders_public_router,
+    private_router as orders_private_router,
+)
 
 router = APIRouter(
     prefix="/v1",
@@ -21,4 +24,5 @@ router.include_router(items_private_router)
 router.include_router(storage_router)
 router.include_router(categories_router)
 router.include_router(customers_router)
-router.include_router(orders_router)
+router.include_router(orders_private_router)
+router.include_router(orders_public_router)

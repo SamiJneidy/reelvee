@@ -13,8 +13,8 @@ class ItemRepository:
         filters_list = []
         if filters.get("status") is not None:
             filters_list.append(Item.status == filters["status"])
-        if filters.get("visibility") is not None:
-            filters_list.append(Item.visibility == filters["visibility"])
+        if filters.get("is_visible") is not None:
+            filters_list.append(Item.is_visible == filters["is_visible"])
         if filters.get("name"):
             filters_list.append(
                 {"name": {"$regex": re.escape(filters["name"]), "$options": "i"}}

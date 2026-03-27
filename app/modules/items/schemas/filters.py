@@ -8,6 +8,6 @@ class ItemFilters(BaseModel):
     name: str | None = None
     category_id: PydanticObjectId | None = None
     status: ItemStatus | None = None
-    visibility: bool | None = None
+    is_visible: bool | None = None
     slug: str | None = None
     type: ItemType | None = None

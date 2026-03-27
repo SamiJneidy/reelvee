@@ -3,7 +3,7 @@ from pymongo.errors import DuplicateKeyError
 from beanie.exceptions import RevisionIdWasChanged
 
 from app.core.context import CurrentUser
-from app.core.enums import RecordSource
+from app.core.enums import CustomerStatus, RecordSource
 from app.modules.customers.exceptions import (
     CustomerAlreadyExistsException,
     CustomerNotFoundException,
@@ -11,6 +11,7 @@ from app.modules.customers.exceptions import (
 from app.modules.customers.repository import CustomerRepository
 from app.modules.customers.schemas import (
     CustomerCreate,
+    CustomerCreatePublic,
     CustomerFilters,
     CustomerInternal,
     CustomerUpdate,
@@ -61,9 +62,9 @@ class CustomerService:
         self, current_user: CurrentUser, payload: CustomerCreate, session=None
     ) -> CustomerResponse:
         data = payload.model_dump()
-        data["phone"] = data["phone"].strip()
         data["user_id"] = current_user.user.id
         data["source"] = RecordSource.INTERNAL
+        data["status"] = CustomerStatus.ACTIVE
         try:
             customer = await self._repo.create(data, session=session)
         except (RevisionIdWasChanged, DuplicateKeyError):
@@ -81,8 +82,6 @@ class CustomerService:
         if not customer:
             raise CustomerNotFoundException()
         update_data = payload.model_dump(exclude_none=True)
-        if "phone" in update_data:
-            update_data["phone"] = update_data["phone"].strip()
         try:
             updated = await self._repo.update_by_id(
                 current_user.user.id, id, update_data, session=session
@@ -103,34 +102,24 @@ class CustomerService:
     # Internal — used by other services (e.g. orders)
     # -----------------------------------------------------------------
 
-    async def upsert_by_phone(
+    async def create_public_customer(
         self,
         user_id: PydanticObjectId,
-        name: str,
-        country_code: str,
-        phone: str,
-        email: str | None = None,
-        source: RecordSource = RecordSource.WEB,
+        payload: CustomerCreatePublic,
         session=None,
     ) -> CustomerInternal:
-        """Find an existing customer by phone within a store, or create a new one.
-        Used during public order submission to avoid duplicate customer records.
-        """
-        phone = phone.strip()
-        existing = await self._repo.get_by_phone(user_id, phone, session=session)
-        if existing:
-            return self._to_internal(existing)
-        data = {
-            "name": name,
-            "country_code": country_code,
-            "phone": phone,
-            "email": email,
-            "user_id": user_id,
-            "source": source,
-        }
+        data = payload.model_dump()
+        data["user_id"] = user_id
+        data["source"] = RecordSource.WEB
+        data["status"] = CustomerStatus.ACTIVE
         try:
             customer = await self._repo.create(data, session=session)
-        except DuplicateKeyError:
-            existing = await self._repo.get_by_phone(user_id, phone, session=session)
-            return self._to_internal(existing)
+        except (RevisionIdWasChanged, DuplicateKeyError):
+            raise CustomerAlreadyExistsException()
+        return self._to_internal(customer)
+
+    async def get_by_phone(self, user_id: PydanticObjectId, phone: str) -> CustomerInternal | None:
+        customer = await self._repo.get_by_phone(user_id, phone)
+        if not customer:
+            return None
         return self._to_internal(customer)

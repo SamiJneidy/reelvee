@@ -11,5 +11,4 @@ class CustomerBase(BaseModel):
     address: str | None = None
     notes: str | None = None
     source: RecordSource
-    is_favourite: bool
     status: CustomerStatus

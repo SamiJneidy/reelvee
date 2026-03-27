@@ -1,22 +1,33 @@
 from beanie import PydanticObjectId
 
 from app.core.context import CurrentUser
-from app.core.enums import RecordSource
-from app.modules.orders.exceptions import OrderNotFoundException
+from app.core.enums import OrderStatus, RecordSource
+from app.modules.customers.service import CustomerService
+from app.modules.orders.exceptions import ItemNotBelongToUserException, OrderNotFoundException
 from app.modules.orders.repository import OrderRepository
 from app.modules.orders.schemas import (
     OrderCreate,
+    OrderCreatePublic,
     OrderFilters,
     OrderInternal,
     OrderUpdate,
 )
 from app.modules.orders.schemas.responses import OrderResponse
-
+from app.modules.items.service import ItemService
+from app.modules.items.exceptions import ItemNotFoundException
 
 class OrderService:
-    def __init__(self, order_repo: OrderRepository) -> None:
+    def __init__(
+        self,
+        order_repo: OrderRepository,
+        customer_service: CustomerService,
+        item_service: ItemService,
+    ) -> None:
         self._repo = order_repo
+        self._customer_service = customer_service
+        self._item_service = item_service
 
+    # Helper methods
     def _to_response(self, order) -> OrderResponse:
         return OrderResponse.model_validate(order)
 
@@ -28,9 +39,9 @@ class OrderService:
     # -----------------------------------------------------------------
 
     async def get_own_by_id(
-        self, current_user: CurrentUser, id: PydanticObjectId
+        self, current_user: CurrentUser, id: PydanticObjectId, fetch_links: bool = True
     ) -> OrderResponse:
-        order = await self._repo.get_by_id(current_user.user.id, id)
+        order = await self._repo.get_by_id(current_user.user.id, id, fetch_links=fetch_links)
         if not order:
             raise OrderNotFoundException()
         return self._to_response(order)
@@ -75,8 +86,6 @@ class OrderService:
         if not order:
             raise OrderNotFoundException()
         update_data = payload.model_dump(exclude_none=True)
-        if "payment" in update_data:
-            update_data["payment"] = payload.payment
         updated = await self._repo.update_by_id(
             current_user.user.id, id, update_data, session=session
         )
@@ -94,29 +103,29 @@ class OrderService:
     # Internal — used by other services (e.g. public order submission)
     # -----------------------------------------------------------------
 
-    async def create_from_storefront(
+    async def create_public_order(
         self,
         user_id: PydanticObjectId,
-        customer_id: PydanticObjectId,
-        item_id: PydanticObjectId,
-        item_price: float | None = None,
-        quantity: int | None = None,
-        customer_message: str | None = None,
-        source: RecordSource = RecordSource.WEB,
+        payload: OrderCreatePublic,
         session=None,
-    ) -> OrderInternal:
-        """Creates an order from a public storefront submission.
-        Called by the public order endpoint (to be built).
-        """
-        data = {
-            "user_id": user_id,
-            "customer_id": customer_id,
-            "item_id": item_id,
-            "item_price": item_price,
-            "quantity": quantity,
-            "customer_message": customer_message,
-            "source": source,
-            "is_read": False,
-        }
-        order = await self._repo.create(data, session=session)
-        return self._to_internal(order)
+    ) -> None:
+        item = await self._item_service.get_by_id(user_id, payload.item_id)
+        if item.user_id != user_id:
+            raise ItemNotBelongToUserException()
+        if not item.is_visible:
+            raise ItemNotFoundException()
+
+        customer = await self._customer_service.get_by_phone(user_id, payload.customer.phone)
+        if not customer:
+            customer = await self._customer_service.create_public_customer(
+                user_id, 
+                payload.customer, 
+                session=session
+            )
+        data = payload.model_dump(exclude={"customer"})
+        data["user_id"] = user_id
+        data["customer_id"] = customer.id
+        data["source"] = RecordSource.WEB
+        data["status"] = OrderStatus.NEW
+        data["is_read"] = False
+        await self._repo.create(data, session=session)

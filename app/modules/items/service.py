@@ -67,6 +67,12 @@ class ItemService:
     # Public (no context scope)
     # -----------------------------------------------------------------
 
+    async def get_by_id(self, user_id: PydanticObjectId, id: PydanticObjectId) -> ItemResponse:
+        item = await self._repo.get_by_id(user_id, id)
+        if not item:
+            raise ItemNotFoundException()
+        return await self._to_item_response(item)
+
     async def get_by_slug(self, user_id: PydanticObjectId, slug: str) -> ItemPublicResponse:
         item = await self._repo.get_by_slug(user_id, slug)
         if not item:
@@ -182,6 +188,18 @@ class ItemService:
         item = await self._repo.get_own_by_id(current_user.user.id, id, session=session)
         if not item:
             raise ItemNotFoundException()
+        
+        try:
+            await self.delete_thumbnail(current_user, id)
+        except Exception:
+            pass
+        
+        for image in item.images:
+            try:
+                await self._storage_service.delete_file(image.key)
+            except Exception:
+                pass
+        
         await self._repo.delete_own_by_id(current_user.user.id, id, session=session)
     
     async def save_thumbnail(self, file: FileInput) -> FileResponse:

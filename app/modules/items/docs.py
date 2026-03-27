@@ -23,7 +23,7 @@ class ItemDocs:
         summary = "List my items"
         description = (
             "Returns a paginated list of the authenticated user's items. "
-            "Optional filters: type, name, category_id, status, visibility, slug."
+            "Optional filters: type, name, category_id, status, is_visible, slug."
         )
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
@@ -85,7 +85,7 @@ class ItemPublicDocs:
         summary = "List store items"
         description = (
             "Returns a paginated list of items for a store, by store URL. "
-            "Used for the public storefront. Optional filters: type, name, category_id, status, visibility, slug."
+            "Used for the public storefront. Optional filters: type, name, category_id, status, is_visible, slug."
         )
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_404_NOT_FOUND: error_response(UserNotFoundException),

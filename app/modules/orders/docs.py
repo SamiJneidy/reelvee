@@ -5,7 +5,9 @@ from fastapi import status
 
 from app.shared.utils.docs import error_response
 from app.modules.auth.tokens.exceptions import InvalidTokenException
-from app.modules.orders.exceptions import OrderNotFoundException
+from app.modules.items.exceptions import ItemNotFoundException
+from app.modules.orders.exceptions import ItemNotBelongToUserException, OrderNotFoundException
+from app.modules.users.exceptions import UserNotFoundException
 
 
 class OrderDocs:
@@ -64,4 +66,24 @@ class OrderDocs:
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
             status.HTTP_404_NOT_FOUND: error_response(OrderNotFoundException),
+        }
+
+
+class OrderPublicDocs:
+
+    class CreatePublicOrder:
+        summary = "Submit an order"
+        description = (
+            "Submits a new order for a store identified by its store URL. "
+            "A customer record is created automatically if the phone number is not already on file. "
+            "No authentication required. "
+            "The order is created with status 'new' and will appear in the store owner's dashboard."
+        )
+        responses: dict[int | str, dict[str, Any]] = {
+            status.HTTP_404_NOT_FOUND: error_response(
+                UserNotFoundException,
+                ItemNotFoundException,
+                description="Store not found or item not found / not available",
+            ),
+            status.HTTP_403_FORBIDDEN: error_response(ItemNotBelongToUserException),
         }

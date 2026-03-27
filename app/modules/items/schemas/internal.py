@@ -9,9 +9,9 @@ from app.modules.storage.schemas import FileInput
 
 from .base import ItemBase
 from app.shared.schemas.base import BaseModelWithId
-from app.shared.schemas.mixins import TimeMixin
+from app.shared.schemas.mixins import TimeMixin, TenantMixin
 
-class ItemInternal(ItemBase, BaseModelWithId, TimeMixin):
+class ItemInternal(ItemBase, BaseModelWithId, TimeMixin, TenantMixin):
     slug: str
     model_config = ConfigDict(from_attributes=True)
 
@@ -26,7 +26,7 @@ class ItemUpdateInternal(BaseModel):
     categories: list[PydanticObjectId] | None = None
     tags: list[str] | None = None
     status: ItemStatus | None = None
-    visibility: bool | None = None
+    is_visible: bool | None = None
     slug: str | None = None
     attributes: list[ItemAttribute] | None = None
     type: ItemType | None = None

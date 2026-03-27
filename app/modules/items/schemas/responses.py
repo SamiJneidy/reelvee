@@ -5,14 +5,21 @@ from app.modules.categories.schemas import CategoryResponse
 from app.modules.items.models import ItemAttribute
 from app.modules.storage.schemas import FileResponse
 from app.shared.schemas.base import BaseModelWithId
-from app.shared.schemas.mixins import TimeMixin
+from app.shared.schemas.mixins import TimeMixin, TenantMixin
 
 from .base import ItemBase
 
 
-class ItemResponse(ItemBase, BaseModelWithId, TimeMixin):
+class ItemResponse(ItemBase, BaseModelWithId, TimeMixin, TenantMixin):
     slug: str
     categories: list[CategoryResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+
+class ItemMinimalResponse(BaseModelWithId, TenantMixin):
+    name: str
+    slug: str
+    price: float
+    thumbnail: FileResponse | None = None
     model_config = ConfigDict(from_attributes=True)
 
 class ItemPublicResponse(BaseModelWithId):

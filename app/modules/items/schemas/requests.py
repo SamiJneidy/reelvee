@@ -15,7 +15,7 @@ class ItemCreate(BaseModel):
     categories: list[PydanticObjectId] = Field([], description="Item categories")
     tags: list[str] = Field([], description="Item tags")
     status: ItemStatus
-    visibility: bool
+    is_visible: bool
     attributes: list[ItemAttribute] = Field([], description="Item attributes (name, value pairs)")
     type: ItemType = Field(..., description="Item type")
 
@@ -30,5 +30,5 @@ class ItemUpdate(BaseModel):
     categories: list[PydanticObjectId] | None = None
     tags: list[str] | None = None
     status: ItemStatus | None = None
-    visibility: bool | None = None
+    is_visible: bool | None = None
     attributes: list[ItemAttribute] | None = None

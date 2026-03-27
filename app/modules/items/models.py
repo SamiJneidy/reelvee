@@ -11,6 +11,7 @@ class ItemAttribute(BaseModel):
     value: str
 
 class Item(BaseDocument):
+    user_id: PydanticObjectId
     name: str
     description: str | None = None
     price: float
@@ -20,10 +21,9 @@ class Item(BaseDocument):
     categories: list[PydanticObjectId] = []
     tags: list[str] = []
     status: ItemStatus
-    visibility: bool
+    is_visible: bool
     slug: Indexed(str, unique=True)
     attributes: list[ItemAttribute] = []
-    user_id: PydanticObjectId
     user: Link[User] | None = None
     type: ItemType
 
