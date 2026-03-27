@@ -13,6 +13,7 @@ class PresignedURLResponse(BaseModel):
     id: str
     key: str
     upload_url: str
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FileInput(BaseModel):
@@ -22,6 +23,7 @@ class FileInput(BaseModel):
         None,
         description="The public URL of the file. Omit in case of new file upload. Keep for existing files.",
     )
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FileResponse(BaseModel):

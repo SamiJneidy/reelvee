@@ -118,7 +118,7 @@ class UserService:
         qr_code = await self.generate_qr_code(user_url, session)
         await self._repo.update_by_email(email, {"qr_code": qr_code}, session=session)
         if data.logo:
-            await self.save_logo(user.id, data.logo, session)
+            await self.update_logo(user.id, data.logo, session)
         updated_user = await self.get_by_email(email)
         return SignUpCompleteResponse(user=UserResponse.model_validate(updated_user))
 
@@ -149,17 +149,30 @@ class UserService:
         update_data: UserUpdateInternal | dict[str, Any],
         session=None,
     ) -> UserInternal:
+        user = await self.get_by_email(email)
+
         if isinstance(update_data, UserUpdateInternal):
             update_data = update_data.model_dump(exclude_none=True)
+
         if update_data.get("store_url"):
             await self.validate_store_link(email, update_data["store_url"], session)
+        
+        if update_data.get("logo") and not update_data["logo"].get("url"):
+            try:
+                new_logo = FileInput.model_validate(update_data["logo"])
+                await self.update_logo(user.id, new_logo, session)
+                await self._storage_service.delete_file(user.logo.key)
+            except Exception as e:
+                pass
+        
+        # Logo updated separately, remove it from the update data
+        update_data.pop("logo", None)
+        
         try:
-            user = await self._repo.update_by_email(email, update_data, session=session)
+            updated_user = await self._repo.update_by_email(email, update_data, session=session)
         except (DuplicateKeyError, RevisionIdWasChanged):
             raise DuplicateKeyErrorException("Duplicate key error. Some of the fields are already in use (email, store link, whatsapp number)")
-        if not user:
-            raise UserNotFoundException()
-        return UserInternal.model_validate(user)
+        return UserInternal.model_validate(updated_user)
 
     async def request_email_change(
         self, current_user: CurrentUser, data: RequestEmailChangeRequest, session = None
@@ -231,7 +244,7 @@ class UserService:
         await self._repo.delete_by_email(email, session=session)
         return UserInternal.model_validate(user)
 
-    async def save_logo(self, user_id: PydanticObjectId, file: FileInput, session=None) -> FileResponse:
+    async def update_logo(self, user_id: PydanticObjectId, file: FileInput, session=None) -> FileResponse:
         if file.url:
             return FileResponse.model_validate(file)
         data = await self._storage_service.finalize_file(
@@ -242,7 +255,10 @@ class UserService:
         return FileResponse.model_validate(data)
 
     async def delete_logo(self, current_user: CurrentUser, session=None) -> None:
-        await self._storage_service.delete_file(current_user.user.logo.key)
+        try:
+            await self._storage_service.delete_file(current_user.user.logo.key)
+        except Exception as e:
+            pass
         await self._repo.update_by_id(current_user.user.id, {"logo": None}, session=session)
 
     async def generate_qr_code(self, store_url: str, session=None) -> FileResponse:
