@@ -46,7 +46,6 @@ class Store(BaseDocument):
     links: list[Link] = Field(default_factory=list)
     template_id: TemplateId = TemplateId.TEMPLATE_A
     config: PageConfig = Field(default_factory=PageConfig)
-    is_published: bool = False
 
     class Settings:
         name = "stores"

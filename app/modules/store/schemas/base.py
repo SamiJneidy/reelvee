@@ -46,6 +46,5 @@ class StoreBase(BaseModel):
     links: list[Link] = Field(default_factory=list)
     template_id: TemplateId = TemplateId.TEMPLATE_A
     config: PageConfig = Field(default_factory=PageConfig)
-    is_published: bool = False
 
     model_config = ConfigDict(from_attributes=True)

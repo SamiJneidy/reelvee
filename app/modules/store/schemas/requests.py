@@ -11,4 +11,3 @@ class StoreUpdate(BaseModel):
     links: list[Link] | None = None
     template_id: TemplateId | None = None
     config: PageConfig | None = None
-    is_published: bool | None = None
