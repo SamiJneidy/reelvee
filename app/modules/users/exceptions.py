@@ -50,11 +50,6 @@ class InvitationNotAllowedException(BaseAppException):
     status_code = status.HTTP_403_FORBIDDEN
 
 
-class InvalidStoreLinkException(BaseAppException):
-    detail = "The store link is invalid or not available"
-    status_code = status.HTTP_400_BAD_REQUEST
-
-
 class EmailChangeNotAllowedException(BaseAppException):
     detail = "Email change not allowed"
     status_code = status.HTTP_401_UNAUTHORIZED

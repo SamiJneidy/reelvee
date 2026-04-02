@@ -1,22 +1,19 @@
 from datetime import datetime, timezone
-import re
 from typing import Any
 
 from beanie import PydanticObjectId
-from fastapi import status
-from pymongo.errors import DuplicateKeyError
 from beanie.exceptions import RevisionIdWasChanged
-from app.core.config import settings
+from pymongo.errors import DuplicateKeyError
+
 from app.core.context import CurrentUser
-from app.core.enums import PermanentFileUploadPath, TokenScope, UserStatus, UserStep
+from app.core.enums import TokenScope, UserStatus, UserStep
 from app.core.exceptions.exceptions import DuplicateKeyErrorException
 from app.core.security import verify_password
 from app.modules.auth.tokens.schemas import EmailChangeToken
 from app.modules.auth.tokens.service import TokenService
-from app.modules.storage.schemas import FileInput, FileResponse
+from app.modules.store.service import StoreService
 from app.modules.users.exceptions import (
     EmailChangeNotAllowedException,
-    InvalidStoreLinkException,
     UserAlreadyCompletedException,
     UserAlreadyExistsException,
     UserNotFoundException,
@@ -30,24 +27,32 @@ from app.modules.users.schemas import (
     UserCreate,
     UserUpdateInternal,
 )
-from app.modules.users.schemas.requests import ChangeEmailRequest, RequestEmailChangeRequest, SignUpCompleteRequest
+from app.modules.users.schemas.requests import (
+    ChangeEmailRequest,
+    RequestEmailChangeRequest,
+    SignUpCompleteRequest,
+)
 from app.modules.users.schemas.responses import SignUpCompleteResponse, UserResponse
-from app.modules.users.utils import get_full_store_url
 from app.shared.services import EmailService
-from app.modules.storage.service import StorageService
-from app.shared.utils.qrcode_helper import QRCodeUtils
+from app.core.config import settings
+
 
 class UserService:
-    def __init__(self, 
-        user_repo: UserRepository, 
+    def __init__(
+        self,
+        user_repo: UserRepository,
         token_service: TokenService,
         email_service: EmailService,
-        storage_service: StorageService
+        store_service: StoreService,
     ) -> None:
         self._repo = user_repo
         self._token_service = token_service
         self._email_service = email_service
-        self._storage_service = storage_service
+        self._store_service = store_service
+
+    # ------------------------------------------------------------------
+    # Queries
+    # ------------------------------------------------------------------
 
     async def get_by_id_in_db(self, id: PydanticObjectId) -> UserInDB:
         user = await self._repo.get_by_id(id)
@@ -73,12 +78,6 @@ class UserService:
             raise UserNotFoundException()
         return UserInternal.model_validate(user)
 
-    async def get_by_store_url(self, store_url: str) -> UserInternal:
-        user = await self._repo.get_by_store_url(store_url)
-        if not user:
-            raise UserNotFoundException()
-        return UserInternal.model_validate(user)
-
     async def get_users(
         self,
         skip: int = 0,
@@ -92,16 +91,26 @@ class UserService:
         )
         return total, [UserInternal.model_validate(u) for u in users]
 
+    # ------------------------------------------------------------------
+    # Onboarding
+    # ------------------------------------------------------------------
+
     async def sign_up_complete(
-        self, email: str, data: SignUpCompleteRequest, session = None
+        self, email: str, data: SignUpCompleteRequest, session=None
     ) -> SignUpCompleteResponse:
         user = await self.get_by_email(email)
         if not user.is_email_verified:
             raise UserNotVerifiedException()
         if user.is_completed:
             raise UserAlreadyCompletedException()
-        user_data = UserUpdateInternal(
-            **data.model_dump(exclude={"logo"}),
+
+        # Update user (account / personal profile fields only)
+        user_update = UserUpdateInternal(
+            first_name=data.first_name,
+            last_name=data.last_name,
+            country_code=data.country_code,
+            whatsapp_number=data.whatsapp_number,
+            address=data.address,
             status=UserStatus.ACTIVE,
             step=UserStep.TWO,
             is_completed=True,
@@ -110,35 +119,34 @@ class UserService:
             invalid_login_attempts=0,
         )
         try:
-            await self.update_by_email(email, user_data, session)
+            await self.update_by_email(email, user_update, session)
         except (DuplicateKeyError, RevisionIdWasChanged):
-            raise DuplicateKeyErrorException("Duplicate key error. The store link or whatsapp number is already in use")
-        
-        user_url = get_full_store_url(data.store_url)
-        qr_code = await self.generate_qr_code(user_url, session)
-        await self._repo.update_by_email(email, {"qr_code": qr_code}, session=session)
-        if data.logo:
-            await self.update_logo(user.id, data.logo, session)
+            raise DuplicateKeyErrorException(
+                "Duplicate key error. The whatsapp number is already in use"
+            )
+
+        # Create store page (store fields: url, logo, links, profile title/bio)
+        await self._store_service.create_for_user(
+            user_id=user.id,
+            store_url=data.store_url,
+            profile_title=data.business_name or "",
+            profile_bio=data.business_description or "",
+            links=data.links,
+            logo=data.logo,
+            session=session,
+        )
+
         updated_user = await self.get_by_email(email)
         return SignUpCompleteResponse(user=UserResponse.model_validate(updated_user))
 
-    async def validate_store_link(self, user_email: str, store_url: str, session=None) -> None:
-        if len(store_url) < 3:
-            raise InvalidStoreLinkException("Store link must be at least 3 characters long")
-        store_url = store_url.strip().lower()
-        regex = re.compile(r'^[a-z0-9-]+$')
-        if not regex.match(store_url):
-            raise InvalidStoreLinkException("Store link can only contain letters, numbers and hyphens")
-        existing = await self._repo.get_by_store_url(store_url, session)
-        if existing and existing.email != user_email:
-            raise InvalidStoreLinkException("Store link is already in use", status.HTTP_409_CONFLICT)
+    # ------------------------------------------------------------------
+    # Mutations
+    # ------------------------------------------------------------------
 
     async def create_user(self, payload: UserCreate, session=None) -> UserInternal:
         existing = await self._repo.get_by_email(payload.email)
         if existing:
             raise UserAlreadyExistsException()
-        if payload.store_url:
-            await self.validate_store_link(payload.email, payload.store_url, session)
         data = payload.model_dump()
         user = await self._repo.create(data, session=session)
         return UserInternal.model_validate(user)
@@ -149,33 +157,21 @@ class UserService:
         update_data: UserUpdateInternal | dict[str, Any],
         session=None,
     ) -> UserInternal:
-        user = await self.get_by_email(email)
-
         if isinstance(update_data, UserUpdateInternal):
             update_data = update_data.model_dump(exclude_none=True)
 
-        if update_data.get("store_url"):
-            await self.validate_store_link(email, update_data["store_url"], session)
-        
-        if update_data.get("logo") and not update_data["logo"].get("url"):
-            try:
-                new_logo = FileInput.model_validate(update_data["logo"])
-                await self.update_logo(user.id, new_logo, session)
-                await self._storage_service.delete_file(user.logo.key)
-            except Exception as e:
-                pass
-        
-        # Logo updated separately, remove it from the update data
-        update_data.pop("logo", None)
-        
         try:
             updated_user = await self._repo.update_by_email(email, update_data, session=session)
         except (DuplicateKeyError, RevisionIdWasChanged):
-            raise DuplicateKeyErrorException("Duplicate key error. Some of the fields are already in use (email, store link, whatsapp number)")
+            raise DuplicateKeyErrorException(
+                "Duplicate key error. Some of the fields are already in use (email, whatsapp number)"
+            )
+        if not updated_user:
+            raise UserNotFoundException()
         return UserInternal.model_validate(updated_user)
 
     async def request_email_change(
-        self, current_user: CurrentUser, data: RequestEmailChangeRequest, session = None
+        self, current_user: CurrentUser, data: RequestEmailChangeRequest, session=None
     ) -> None:
         user = await self.get_by_id_in_db(current_user.user.id)
         if not verify_password(data.password, user.password):
@@ -191,7 +187,7 @@ class UserService:
         await self._email_service.send_email_change_link(data.new_email, change_url)
 
     async def confirm_email_change(
-        self, data: ChangeEmailRequest, session = None
+        self, data: ChangeEmailRequest, session=None
     ) -> UserInternal:
         token_payload = self._token_service.decode_token(data.token)
         token = EmailChangeToken.model_validate(token_payload)
@@ -239,33 +235,7 @@ class UserService:
         return UserInternal.model_validate(user)
 
     async def delete_user(self, email: str, session=None) -> UserInternal:
-        """NOT A SOFT DELETE, IT WILL DELETE THE USER FROM THE DATABASE"""
+        """Hard delete — removes the user document from the database."""
         user = await self.get_by_email(email)
         await self._repo.delete_by_email(email, session=session)
         return UserInternal.model_validate(user)
-
-    async def update_logo(self, user_id: PydanticObjectId, file: FileInput, session=None) -> FileResponse:
-        if file.url:
-            return FileResponse.model_validate(file)
-        data = await self._storage_service.finalize_file(
-            file=file,
-            destination_path=PermanentFileUploadPath.USER_LOGO.value
-        )
-        await self._repo.update_by_id(user_id, {"logo": data}, session=session)
-        return FileResponse.model_validate(data)
-
-    async def delete_logo(self, current_user: CurrentUser, session=None) -> None:
-        try:
-            await self._storage_service.delete_file(current_user.user.logo.key)
-        except Exception as e:
-            pass
-        await self._repo.update_by_id(current_user.user.id, {"logo": None}, session=session)
-
-    async def generate_qr_code(self, store_url: str, session=None) -> FileResponse:
-        qr_code = QRCodeUtils.generate_qr_code(store_url)
-        data = await self._storage_service.upload_bytes(
-            path=PermanentFileUploadPath.USER_QR_CODE.value,
-            filename=f"{store_url}.png",
-            content=qr_code,
-        )
-        return FileResponse.model_validate(data)

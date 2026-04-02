@@ -125,3 +125,37 @@ class PaymentStatus(str, Enum):
     PARTIAL  = "partial"
     PAID     = "paid"
     REFUNDED = "refunded"
+
+
+class TemplateId(str, Enum):
+    TEMPLATE_A = "TEMPLATE_A"
+    TEMPLATE_B = "TEMPLATE_B"
+
+
+class Layout(str, Enum):
+    LIST = "LIST"
+    GRID = "GRID"
+
+
+class ButtonVariant(str, Enum):
+    SOLID   = "SOLID"
+    OUTLINE = "OUTLINE"
+    GHOST   = "GHOST"
+
+
+class ButtonShape(str, Enum):
+    ROUNDED = "ROUNDED"
+    SQUARE  = "SQUARE"
+    PILL    = "PILL"
+
+
+class BackgroundType(str, Enum):
+    COLOR    = "COLOR"
+    IMAGE    = "IMAGE"
+    GRADIENT = "GRADIENT"
+
+
+class Font(str, Enum):
+    INTER   = "INTER"
+    ROBOTO  = "ROBOTO"
+    POPPINS = "POPPINS"

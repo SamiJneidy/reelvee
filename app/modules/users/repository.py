@@ -34,23 +34,13 @@ class UserRepository:
             filters_list.append(
                 {"whatsapp_number": {"$regex": re.escape(filters["whatsapp_number"]), "$options": "i"}}
             )
-        if filters.get("business_name"):
-            filters_list.append(
-                {"business_name": {"$regex": re.escape(filters["business_name"]), "$options": "i"}}
-            )
-        if filters.get("store_url"):
-            filters_list.append(
-                {"store_url": {"$regex": re.escape(filters["store_url"]), "$options": "i"}}
-            )
+        return filters_list
 
     async def get_by_id(self, id: PydanticObjectId, session=None) -> User | None:
         return await User.get(id, session=session)
 
     async def get_by_email(self, email: str, session=None) -> User | None:
         return await User.find_one(User.email == email.lower().strip(), session=session)
-
-    async def get_by_store_url(self, store_url: str, session=None) -> User | None:
-        return await User.find_one(User.store_url == store_url.lower().strip(), session=session)
 
     async def get_users(
         self,

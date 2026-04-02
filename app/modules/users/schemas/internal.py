@@ -3,26 +3,24 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import UserPlan, UserStatus, UserStep
-from app.shared.schemas.common import Link
 from app.shared.schemas.base import BaseModelWithId
-from app.modules.storage.schemas import FileInput, FileResponse
 from .base import UserBase
 
 
 class UserInternal(UserBase, BaseModelWithId):
-    email: str
     last_login: datetime | None = None
     invalid_login_attempts: int = 0
     status: UserStatus
     step: UserStep
     is_email_verified: bool
     is_completed: bool
-    qr_code: FileResponse | None = None
     is_deleted: bool
     model_config = ConfigDict(from_attributes=True)
 
+
 class UserInDB(UserInternal):
     password: str
+
 
 class UserUpdateInternal(BaseModel):
     email: str | None = None
@@ -32,11 +30,6 @@ class UserUpdateInternal(BaseModel):
     whatsapp_number: str | None = None
     address: str | None = None
     plan: UserPlan | None = None
-    logo: FileInput | None = None
-    business_name: str | None = None
-    business_description: str | None = None
-    store_url: str | None = None
-    links: list[Link] | None = None
     status: UserStatus | None = None
     step: UserStep | None = None
     is_email_verified: bool | None = None

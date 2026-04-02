@@ -12,6 +12,7 @@ from app.modules.items.models import Item
 from app.modules.categories.models import Category
 from app.modules.customers.models import Customer
 from app.modules.orders.models import Order
+from app.modules.store.models import Store
 
 # Single client for the app. Created at import; connect in init_db().
 client = AsyncIOMotorClient(
@@ -32,6 +33,7 @@ async def init_db() -> None:
             RefreshTokenRecord,
             Customer,
             Order,
+            Store,
         ],
     )
 
