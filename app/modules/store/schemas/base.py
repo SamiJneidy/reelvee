@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import (
     BackgroundType,
@@ -20,10 +20,14 @@ class ThemeConfig(BaseModel):
     text: str = "#ffffff"
     font: Font = Font.INTER
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class ProfileConfig(BaseModel):
     title: str = ""
     bio: str = ""
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PageConfig(BaseModel):
@@ -33,6 +37,8 @@ class PageConfig(BaseModel):
     theme: ThemeConfig = Field(default_factory=ThemeConfig)
     profile: ProfileConfig = Field(default_factory=ProfileConfig)
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class StoreBase(BaseModel):
     store_url: str | None = None
@@ -41,3 +47,5 @@ class StoreBase(BaseModel):
     template_id: TemplateId = TemplateId.TEMPLATE_A
     config: PageConfig = Field(default_factory=PageConfig)
     is_published: bool = False
+
+    model_config = ConfigDict(from_attributes=True)

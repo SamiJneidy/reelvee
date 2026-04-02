@@ -126,24 +126,14 @@ class StoreService:
         if not store:
             raise StoreNotFoundException()
 
-        update: dict[str, Any] = {}
+        update_data = data.model_dump(exclude_none=True, exclude={"logo"})
 
-        if data.links is not None:
-            update["links"] = data.links
-        if data.template_id is not None:
-            update["template_id"] = data.template_id
-        if data.is_published is not None:
-            update["is_published"] = data.is_published
-        if data.config is not None:
-            update["config"] = data.config   # full replacement
-
-        if update:
-            try:
-                await self._repo.update_by_user_id(user_id, update, session=session)
-            except (DuplicateKeyError, RevisionIdWasChanged):
-                raise InvalidStoreUrlException(
-                    "Store URL is already in use", status.HTTP_409_CONFLICT
-                )
+        try:
+            await self._repo.update_by_user_id(user_id, update_data, session=session)
+        except (DuplicateKeyError, RevisionIdWasChanged):
+            raise InvalidStoreUrlException(
+                "Store URL is already in use", status.HTTP_409_CONFLICT
+            )
 
         if data.logo is not None and not data.logo.url:
             await self._update_logo(user_id, data.logo, old_logo=store.logo, session=session)
