@@ -17,35 +17,35 @@ from app.modules.storage.schemas import FileResponse
 
 
 class ThemeConfig(BaseModel):
-    primary: str = "#22c55e"
-    background_type: BackgroundType = BackgroundType.COLOR
-    background: str = "#0a0a0a"
-    background_image: str = ""
-    text: str = "#ffffff"
-    font: Font = Font.INTER
+    primary: str
+    background_type: BackgroundType
+    background: str
+    background_image: File | None
+    text: str
+    font: Font
 
 
 class ProfileConfig(BaseModel):
-    title: str = ""
-    bio: str = ""
+    title: str
+    bio: str
 
 
 class PageConfig(BaseModel):
-    layout: Layout = Layout.LIST
-    button_variant: ButtonVariant = ButtonVariant.OUTLINE
-    button_shape: ButtonShape = ButtonShape.ROUNDED
-    theme: ThemeConfig = Field(default_factory=ThemeConfig)
-    profile: ProfileConfig = Field(default_factory=ProfileConfig)
+    layout: Layout
+    button_variant: ButtonVariant
+    button_shape: ButtonShape
+    theme: ThemeConfig
+    profile: ProfileConfig
 
 
 class Store(BaseDocument):
     user_id: PydanticObjectId
     store_url: Indexed(str, unique=True)
-    logo: File | None = None
-    qr_code: FileResponse | None = None
-    links: list[Link] = Field(default_factory=list)
-    template_id: TemplateId = TemplateId.TEMPLATE_A
-    config: PageConfig = Field(default_factory=PageConfig)
+    logo: File | None
+    qr_code: FileResponse | None
+    links: list[Link]
+    template_id: TemplateId
+    config: PageConfig
 
     class Settings:
         name = "stores"

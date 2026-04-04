@@ -111,6 +111,8 @@ class UserService:
             country_code=data.country_code,
             whatsapp_number=data.whatsapp_number,
             address=data.address,
+            business_name=data.business_name,
+            business_description=data.business_description,
             status=UserStatus.ACTIVE,
             step=UserStep.TWO,
             is_completed=True,
@@ -129,10 +131,9 @@ class UserService:
         await self._store_service.create_for_user(
             user_id=user.id,
             store_url=data.store_url,
-            profile_title=data.business_name or "",
-            profile_bio=data.business_description or "",
+            profile_title="My Store",
+            profile_bio="Welcome to my store!",
             links=data.links,
-            logo=data.logo,
             session=session,
         )
 

@@ -7,7 +7,15 @@ from fastapi import status
 from pymongo.errors import DuplicateKeyError
 
 from app.core.config import settings
-from app.core.enums import PermanentFileUploadPath
+from app.core.enums import (
+    BackgroundType,
+    ButtonShape,
+    ButtonVariant,
+    Font,
+    Layout,
+    PermanentFileUploadPath,
+)
+from app.modules.storage.models import File
 from app.modules.storage.schemas import FileInput, FileResponse
 from app.modules.storage.service import StorageService
 from app.modules.store.exceptions import (
@@ -19,6 +27,13 @@ from app.modules.store.models import PageConfig, ProfileConfig, ThemeConfig
 from app.modules.store.repository import StoreRepository
 from app.modules.store.schemas import StoreResponse, StoreUpdate
 from app.shared.utils.qrcode_helper import QRCodeUtils
+
+
+def _file_from_response(fr: FileResponse | None) -> File | None:
+    if fr is None:
+        return None
+    return File.model_validate(fr.model_dump())
+
 
 class StoreService:
     def __init__(
@@ -90,7 +105,18 @@ class StoreService:
         qr_code = await self._generate_qr_code(self._get_full_store_url(store_url), session=session)
 
         config = PageConfig(
-            profile=ProfileConfig(title=profile_title, bio=profile_bio)
+            layout=Layout.LIST,
+            button_variant=ButtonVariant.OUTLINE,
+            button_shape=ButtonShape.ROUNDED,
+            theme=ThemeConfig(
+                primary="#22c55e",
+                background_type=BackgroundType.COLOR,
+                background="#0a0a0a",
+                background_image=None,
+                text="#ffffff",
+                font=Font.INTER,
+            ),
+            profile=ProfileConfig(title=profile_title, bio=profile_bio),
         )
 
         try:
@@ -110,10 +136,13 @@ class StoreService:
                 "Store URL is already in use", status.HTTP_409_CONFLICT
             )
 
+        if logo:
+            await self._update_logo(user_id, logo, session=session)
+
         return StoreResponse.model_validate(store)
 
     # ------------------------------------------------------------------
-    # Update
+    # Update (full body PUT)
     # ------------------------------------------------------------------
 
     async def update_by_user_id(
@@ -126,7 +155,14 @@ class StoreService:
         if not store:
             raise StoreNotFoundException()
 
-        update_data = data.model_dump(exclude_none=True, exclude={"logo"})
+        update_data = data.model_dump()
+        
+        logo = await self._handle_logo_update(data, store.logo)
+        update_data["logo"] = logo
+        
+        background_image = await self._handle_background_image_update(data, store.config.theme.background_image)
+        if update_data.get("config") and update_data["config"].get("theme"):
+            update_data["config"]["theme"]["background_image"] = background_image
 
         try:
             await self._repo.update_by_user_id(user_id, update_data, session=session)
@@ -134,9 +170,6 @@ class StoreService:
             raise InvalidStoreUrlException(
                 "Store URL is already in use", status.HTTP_409_CONFLICT
             )
-
-        if data.logo is not None and not data.logo.url:
-            await self._update_logo(user_id, data.logo, old_logo=store.logo, session=session)
 
         return StoreResponse.model_validate(
             await self._repo.get_by_user_id(user_id, session=session)
@@ -176,31 +209,83 @@ class StoreService:
     async def _update_logo(
         self,
         user_id: PydanticObjectId,
-        file: FileInput,
-        old_logo,
+        new_logo: FileInput | None,
+        old_logo: FileResponse | None,
         session=None,
     ) -> FileResponse:
-        if file.url:
-            logo_data = FileResponse.model_validate(file)
-        else:
-            logo_data = FileResponse.model_validate(
-                await self._storage_service.finalize_file(
-                    file=file,
-                    destination_path=PermanentFileUploadPath.USER_LOGO.value,
-                )
-            )
+        if new_logo is None:
+            await self._repo.update_by_user_id(user_id, {"logo": None}, session=session)
             if old_logo:
-                try:
-                    await self._storage_service.delete_file(old_logo.key)
-                except Exception:
-                    pass
-        await self._repo.update_by_user_id(user_id, {"logo": logo_data}, session=session)
-        return logo_data
+                await self._storage_service.delete_file(old_logo.key)
+        try:
+            logo = await self._storage_service.replace_file(
+                new_file=new_logo,
+                destination_path=PermanentFileUploadPath.STORE_LOGO.value,
+                old_file=old_logo,
+            )
+        except Exception as e:
+            logo = old_logo
+        
+        await self._repo.update_by_user_id(user_id, {"logo": logo.model_dump()}, session=session)
+        return logo
+
+
+    async def _handle_logo_update(self, data: StoreUpdate, old_logo = None) -> FileResponse | None:
+        if "logo" not in data.model_fields_set:
+            return old_logo
+
+        if data.logo is None:
+            if old_logo:
+                await self._storage_service.delete_file(old_logo.key)
+            return None
+
+        logo = old_logo
+        if logo is not None and logo.url is None:
+            try:
+                logo = await self._storage_service.finalize_file(
+                    file=data.logo,
+                    destination_path=PermanentFileUploadPath.STORE_LOGO.value
+                )
+                if old_logo:
+                    try:
+                        await self._storage_service.delete_file(old_logo.key)
+                    except Exception:
+                        pass
+            except Exception as e:
+                logo = old_logo
+        return logo
+
+
+    async def _handle_background_image_update(self, data: StoreUpdate, old_image = None) -> FileResponse | None:
+        if not data.config or not data.config.theme or "background_image" not in data.config.theme.model_fields_set:
+            return old_image
+
+        if data.config.theme.background_image is None:
+            if old_image:
+                await self._storage_service.delete_file(old_image.key)
+            return None
+
+        image = old_image
+        if image is not None and image.url is None:
+            try:
+                image = await self._storage_service.finalize_file(
+                    file=data.config.theme.background_image,
+                    destination_path=PermanentFileUploadPath.STORE_BACKGROUND_IMAGE.value
+                )
+                if old_image:
+                    try:
+                        await self._storage_service.delete_file(old_image.key)
+                    except Exception:
+                        pass
+            except Exception as e:
+                image = old_image
+        return image
+
 
     async def _generate_qr_code(self, store_url: str, session=None) -> FileResponse:
         qr_bytes = QRCodeUtils.generate_qr_code(store_url)
         data = await self._storage_service.upload_bytes(
-            path=PermanentFileUploadPath.USER_QR_CODE.value,
+            path=PermanentFileUploadPath.STORE_QR_CODE.value,
             filename=f"{store_url.rsplit('/', 1)[-1]}.png",
             content=qr_bytes,
         )

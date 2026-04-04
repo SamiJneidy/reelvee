@@ -6,25 +6,11 @@ from app.modules.auth.dependencies import get_request_context
 from app.modules.store.dependencies import StoreService, get_store_service
 from app.modules.store.schemas import StoreResponse, StoreUpdate
 from app.shared.schemas import SingleResponse
-from app.shared.schemas.responses import SuccessResponse
 
 router = APIRouter(
     prefix="/store",
     tags=["Store"],
 )
-
-
-@router.get(
-    "/{store_url}",
-    response_model=SingleResponse[StoreResponse],
-    summary="Get my store",
-)
-async def get_store_info(
-    store_url: str,
-    store_service: StoreService = Depends(get_store_service),
-) -> SingleResponse[StoreResponse]:
-    data = await store_service.get_by_store_url(store_url)
-    return SingleResponse[StoreResponse](data=data)
 
 
 @router.get(
@@ -40,12 +26,29 @@ async def get_my_store(
     return SingleResponse[StoreResponse](data=data)
 
 
-@router.patch(
+@router.get(
+    "/{store_url}",
+    response_model=SingleResponse[StoreResponse],
+    summary="Get my store",
+)
+async def get_store_info(
+    store_url: str,
+    store_service: StoreService = Depends(get_store_service),
+) -> SingleResponse[StoreResponse]:
+    data = await store_service.get_by_store_url(store_url)
+    return SingleResponse[StoreResponse](data=data)
+
+
+@router.put(
     "/me",
     response_model=SingleResponse[StoreResponse],
-    summary="Update my store",
+    summary="Replace my store",
+    description=(
+        "Full replacement of editable store fields (logo, links, template, config). "
+        "Send the complete body each time — not a partial patch."
+    ),
 )
-async def update_my_store(
+async def update(
     body: StoreUpdate,
     current_user: CurrentUser = Depends(get_request_context),
     store_service: StoreService = Depends(get_store_service),

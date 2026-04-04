@@ -29,6 +29,8 @@ class UserUpdateInternal(BaseModel):
     country_code: str | None = None
     whatsapp_number: str | None = None
     address: str | None = None
+    business_name: str | None = None
+    business_description: str | None = None
     plan: UserPlan | None = None
     status: UserStatus | None = None
     step: UserStep | None = None

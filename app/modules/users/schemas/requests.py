@@ -43,7 +43,6 @@ class SignUpCompleteRequest(BaseModel):
 
     # Store fields (used to create the stores document)
     store_url: str
-    logo: FileInput | None = None
     business_name: str | None = None
     business_description: str | None = None
     links: list[Link] = Field(

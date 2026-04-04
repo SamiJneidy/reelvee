@@ -52,6 +52,66 @@ class StorageService:
         return PresignedURLResponse(id=file_id, key=file_key, upload_url=upload_url)
 
 
+    async def move_file(self, source_key: str, destination_key: str) -> None:
+        """Moves a file from one key to another"""
+        try:
+            await self.s3_client.copy_object(
+                Bucket=settings.aws_bucket,
+                CopySource=f"{settings.aws_bucket}/{source_key}",
+                Key=destination_key,
+            )
+            await self.s3_client.delete_object(
+                Bucket=settings.aws_bucket,
+                Key=source_key,
+            )
+        except Exception:
+            raise FileMoveException()
+
+
+    async def finalize_file(self, file: FileInput, destination_path: str) -> FileResponse:
+        """Moves a file from temp storage to permanent storage and returns the file response"""
+        if file.url:
+            return file
+        extension = file.key.split(".")[-1]
+        destination_key = f"{destination_path}/{file.id}.{extension}"
+        await self.move_file(file.key, destination_key)
+        return FileResponse(id=file.id, key=destination_key, url=self.get_file_url(destination_key))
+
+
+    async def replace_file(
+        self,
+        new_file: FileInput,
+        destination_path: str,
+        old_file: FileResponse | None = None,
+    ) -> FileResponse:
+        """Finalize a new file and replace an old file if it exists. Returns the new file. The old file will be deleted if it exists."""
+        if new_file.url:
+            return FileResponse.model_validate(new_file)
+        
+        finalized_file = await self.finalize_file(
+            file=new_file,
+            destination_path=destination_path
+        )
+        
+        if old_file:
+            await self.delete_file(old_file.key)
+        
+        return finalized_file
+
+
+    async def delete_file(self, key: str) -> None:
+        try:
+            await self.s3_client.delete_object(
+                Bucket=settings.aws_bucket,
+                Key=key,
+            )
+        except Exception:
+            raise FileDeleteException()
+
+
+    # ------------------------------------------------------------------
+    # For Testing/Development
+    # ------------------------------------------------------------------
     async def upload_bytes(
         self,
         path: str,
@@ -102,36 +162,3 @@ class StorageService:
             raise FileUploadException()
         return FileInput(id=file_id, key=file_key)
 
-
-    async def move_file(self, source_key: str, destination_key: str) -> None:
-        try:
-            await self.s3_client.copy_object(
-                Bucket=settings.aws_bucket,
-                CopySource=f"{settings.aws_bucket}/{source_key}",
-                Key=destination_key,
-            )
-            await self.s3_client.delete_object(
-                Bucket=settings.aws_bucket,
-                Key=source_key,
-            )
-        except Exception:
-            raise FileMoveException()
-
-
-    async def finalize_file(self, file: FileInput, destination_path: str) -> FileResponse:
-        if file.url:
-            return file
-        extension = file.key.split(".")[-1]
-        destination_key = f"{destination_path}/{file.id}.{extension}"
-        await self.move_file(file.key, destination_key)
-        return FileResponse(id=file.id, key=destination_key, url=self.get_file_url(destination_key))
-
-
-    async def delete_file(self, key: str) -> None:
-        try:
-            await self.s3_client.delete_object(
-                Bucket=settings.aws_bucket,
-                Key=key,
-            )
-        except Exception:
-            raise FileDeleteException()

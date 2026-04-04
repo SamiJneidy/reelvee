@@ -72,13 +72,15 @@ class ItemType(str, Enum):
 class TempFileUploadPath(str, Enum):
     ITEM_THUMBNAIL = "temp/items/thumbnails"
     ITEM_IMAGE     = "temp/items/images"
-    USER_LOGO      = "temp/users/logos"
+    STORE_LOGO      = "temp/stores/logos"
+    STORE_BACKGROUND_IMAGE = "temp/stores/background_images"
 
 class PermanentFileUploadPath(str, Enum):
     ITEM_THUMBNAIL = "uploads/items/thumbnails"
     ITEM_IMAGE     = "uploads/items/images"
-    USER_LOGO      = "uploads/users/logos"
-    USER_QR_CODE   = "uploads/users/qr_codes"
+    STORE_LOGO      = "uploads/stores/logos"
+    STORE_QR_CODE   = "uploads/stores/qr_codes"
+    STORE_BACKGROUND_IMAGE = "uploads/stores/background_images"
 
 
 class RecordSource(str, Enum):

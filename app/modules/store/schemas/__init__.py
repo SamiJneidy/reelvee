@@ -1,3 +1,9 @@
-from .base import StoreBase, PageConfig, ProfileConfig, ThemeConfig
-from .requests import StoreUpdate
+from .base import StoreBase, PageConfigBase, ProfileConfigBase, ThemeConfigBase
+from .requests import (
+    PageConfigRequest,
+    ProfileConfigRequest,
+    StoreUpdate,
+    StoreUpdate,
+    ThemeConfigRequest,
+)
 from .responses import StoreResponse

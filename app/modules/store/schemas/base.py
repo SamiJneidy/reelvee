@@ -12,30 +12,30 @@ from app.modules.storage.schemas import FileResponse
 from app.shared.schemas.common import Link
 
 
-class ThemeConfig(BaseModel):
+class ThemeConfigBase(BaseModel):
     primary: str = "#22c55e"
     background_type: BackgroundType = BackgroundType.COLOR
     background: str = "#0a0a0a"
-    background_image: str = ""
+    background_image: FileResponse | None = None
     text: str = "#ffffff"
     font: Font = Font.INTER
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class ProfileConfig(BaseModel):
+class ProfileConfigBase(BaseModel):
     title: str = ""
     bio: str = ""
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class PageConfig(BaseModel):
+class PageConfigBase(BaseModel):
     layout: Layout = Layout.LIST
     button_variant: ButtonVariant = ButtonVariant.OUTLINE
     button_shape: ButtonShape = ButtonShape.ROUNDED
-    theme: ThemeConfig = Field(default_factory=ThemeConfig)
-    profile: ProfileConfig = Field(default_factory=ProfileConfig)
+    theme: ThemeConfigBase = Field(default_factory=ThemeConfigBase)
+    profile: ProfileConfigBase = Field(default_factory=ProfileConfigBase)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -45,6 +45,6 @@ class StoreBase(BaseModel):
     logo: FileResponse | None = None
     links: list[Link] = Field(default_factory=list)
     template_id: TemplateId = TemplateId.TEMPLATE_A
-    config: PageConfig = Field(default_factory=PageConfig)
+    config: PageConfigBase = Field(default_factory=PageConfigBase)
 
     model_config = ConfigDict(from_attributes=True)

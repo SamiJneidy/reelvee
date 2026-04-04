@@ -43,7 +43,7 @@ async def sign_up_complete(
     data = await user_service.sign_up_complete(current_user.email, body, session)
     response.delete_cookie("sign_up_complete_token")
     await auth_service.create_access_token(request, response, current_user.id, set_cookie=True)
-    await auth_service.create_refresh_token(request, response, data.id, set_cookie=True)
+    await auth_service.create_refresh_token(request, response, data.user.id, set_cookie=True)
     return SingleResponse[SignUpCompleteResponse](data=data)
 
 
