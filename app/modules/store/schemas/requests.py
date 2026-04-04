@@ -30,21 +30,7 @@ class PageConfigRequest(BaseModel):
     theme: ThemeConfigRequest = Field(...)
     profile: ProfileConfigRequest = Field(...)
     model_config = ConfigDict(from_attributes=True)
-
-
-_STORE_UPDATE_EXAMPLE = {
-    "logo": None,
-    "links": [{"name": "Site", "url": "https://example.com"}],
-    "template_id": "TEMPLATE_A",
-    "config": {
-        "layout": "LIST",
-        "button_variant": "OUTLINE",
-        "button_shape": "ROUNDED",
-        "theme": {"primary": "#22c55e", "background_type": "COLOR", "background": "#0a0a0a", "background_image": None, "text": "#ffffff", "font": "INTER"},
-        "profile": {"title": "My Page", "bio": ""},
-    },
-}
-
+    
 
 class StoreUpdate(BaseModel):
     logo: FileInput | None = Field(...)

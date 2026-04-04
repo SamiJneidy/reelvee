@@ -14,6 +14,7 @@ from app.core.enums import (
     Font,
     Layout,
     PermanentFileUploadPath,
+    TemplateId,
 )
 from app.modules.storage.models import File
 from app.modules.storage.schemas import FileInput, FileResponse
@@ -26,6 +27,7 @@ from app.modules.store.exceptions import (
 from app.modules.store.models import PageConfig, ProfileConfig, ThemeConfig
 from app.modules.store.repository import StoreRepository
 from app.modules.store.schemas import StoreResponse, StoreUpdate
+from app.modules.store.schemas.base import StoreBase
 from app.shared.utils.qrcode_helper import QRCodeUtils
 
 
@@ -104,33 +106,12 @@ class StoreService:
 
         qr_code = await self._generate_qr_code(self._get_full_store_url(store_url), session=session)
 
-        config = PageConfig(
-            layout=Layout.LIST,
-            button_variant=ButtonVariant.OUTLINE,
-            button_shape=ButtonShape.ROUNDED,
-            theme=ThemeConfig(
-                primary="#22c55e",
-                background_type=BackgroundType.COLOR,
-                background="#0a0a0a",
-                background_image=None,
-                text="#ffffff",
-                font=Font.INTER,
-            ),
-            profile=ProfileConfig(title=profile_title, bio=profile_bio),
-        )
+        store_base = StoreBase(store_url=store_url, links=links or [])
+        data = store_base.model_dump()
+        data.update({"user_id": user_id, "qr_code": qr_code})
 
         try:
-            store = await self._repo.create(
-                {
-                    "user_id": user_id,
-                    "store_url": store_url,
-                    "links": links or [],
-                    "qr_code": qr_code,
-                    "logo": logo,
-                    "config": config,
-                },
-                session=session,
-            )
+            store = await self._repo.create(data, session=session)
         except (DuplicateKeyError, RevisionIdWasChanged):
             raise InvalidStoreUrlException(
                 "Store URL is already in use", status.HTTP_409_CONFLICT

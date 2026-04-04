@@ -137,7 +137,7 @@ class UserService:
             session=session,
         )
 
-        updated_user = await self.get_by_email(email)
+        updated_user = await self._repo.get_by_email(email, session)
         return SignUpCompleteResponse(user=UserResponse.model_validate(updated_user))
 
     # ------------------------------------------------------------------
