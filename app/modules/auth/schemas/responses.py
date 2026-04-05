@@ -8,7 +8,9 @@ class SignUpResponse(BaseModel):
 
 
 class VerifyEmailResponse(BaseModel):
-    email: EmailStr 
+    user: UserResponse
+    sign_up_complete_token: str | None = None
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ResetPasswordResponse(BaseModel):
@@ -21,7 +23,26 @@ class RequestEmailVerificationResponse(BaseModel):
 
 class LoginResponse(BaseModel):
     user: UserResponse
+    access_token: str | None = None
+    refresh_token: str | None = None
+    sign_up_complete_token: str | None = None
+    token_type: str = "bearer"
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CurrentSessionResponse(BaseModel):
     user: UserResponse
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SwaggerLoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    model_config = ConfigDict(from_attributes=True)

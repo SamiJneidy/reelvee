@@ -9,6 +9,7 @@ from app.core.security import hash_password, verify_password
 from app.modules.auth.exceptions import (
     InvalidCredentialsException,
     PasswordResetNotAllowedException,
+    UserDeletedException,
 )
 from app.modules.auth.schemas.requests import (
     LoginRequest,
@@ -21,6 +22,7 @@ from app.modules.auth.otp.exceptions import InvalidOTPException
 from app.modules.auth.otp.schemas import SendEmailVerificationOTPRequest
 from app.modules.auth.schemas.responses import (
     LoginResponse,
+    RefreshResponse,
 )
 from app.modules.auth.otp.service import OTPService
 from app.modules.auth.tokens.exceptions import InvalidTokenException
@@ -30,7 +32,6 @@ from app.modules.users.exceptions import (
     UserAlreadyExistsException,
     UserBlockedException,
     UserDisabledException,
-    UserNotActiveException,
     UserNotFoundException,
     UserNotVerifiedException,
 )
@@ -83,37 +84,35 @@ class AuthService:
         await self._otp_service.create_email_verification_otp(otp_req, session)
         return UserResponse.model_validate(user)
 
-    async def login(self, credentials: LoginRequest, session=None) -> LoginResponse:
-        """Validate credentials and return user (caller sets cookies)."""
-        
+    async def login(self, credentials: LoginRequest, session=None) -> UserResponse:
+        """Validate credentials and return user. Caller checks is_completed to decide which tokens to issue."""
         user = await self._user_service.get_by_email_in_db(credentials.email)
+
         if not verify_password(credentials.password, user.password):
             await self._user_service.increment_invalid_login_attempts(credentials.email, session)
             raise InvalidCredentialsException()
 
         if not user.is_email_verified:
-            email_verification_req = SendEmailVerificationOTPRequest(email=credentials.email)
-            await self.request_email_verification(email_verification_req, session)
-            return LoginResponse(user=UserResponse.model_validate(user))
+            raise UserNotVerifiedException()
 
+        # Onboarding not finished — return user so the router can issue a sign_up_complete_token
         if not user.is_completed:
-            # ISSUE SIGN UP COMPLETE TOKEN IN THE ROUTER
-            return LoginResponse(user=UserResponse.model_validate(user))
+            return UserResponse.model_validate(user)
 
+        if user.is_deleted:
+            raise UserDeletedException()
         if user.status == UserStatus.DISABLED:
             raise UserDisabledException()
         if user.status == UserStatus.BLOCKED:
             raise UserBlockedException()
         if user.status == UserStatus.PENDING:
             raise UserNotVerifiedException()
-        if user.status != UserStatus.ACTIVE:
-            raise UserNotActiveException()
 
         if user.invalid_login_attempts > 0:
             await self._user_service.reset_invalid_login_attempts(credentials.email, session)
-        
+
         user = await self._user_service.update_last_login(credentials.email, datetime.now(timezone.utc), session)
-        return LoginResponse(user=UserResponse.model_validate(user))
+        return UserResponse.model_validate(user)
 
     async def request_password_reset(
         self, data: RequestPasswordResetRequest, session = None
@@ -151,7 +150,7 @@ class AuthService:
         hashed = hash_password(data.new_password)
         await self._user_service.update_by_email(data.email, {"password": hashed}, session)
         await self._user_service.reset_invalid_login_attempts(data.email, session)
-        await self._token_service.revoke_all_refresh_tokens_for_user(str(user.id))
+        await self._token_service.revoke_all_refresh_tokens(str(user.id))
 
 
     async def verify_email(
@@ -199,7 +198,10 @@ class AuthService:
         set_cookie: bool = True,
         family_id: str | None = None,
     ) -> str:
-        payload = RefreshToken(sub=str(user_id), family_id=family_id or str(uuid.uuid4()))
+        payload = RefreshToken(
+            sub=str(user_id), 
+            family_id=family_id or str(uuid.uuid4())
+        )
         token = self._token_service.generate_refresh_token(payload)
         await self._token_service.create_refresh_token(
             RefreshTokenCreate(
@@ -257,10 +259,9 @@ class AuthService:
         return token
 
     async def refresh(
-        self, request: Request, response: Response, refresh_token: str, set_cookie: bool = True
-    ) -> None:
+        self, request: Request, response: Response, refresh_token: str, set_cookie: bool = False, delete_cookies: bool = False
+    ) -> RefreshResponse:
         """Rotate refresh token and issue a new access token."""
-
         payload = self._token_service.decode_token(refresh_token)
 
         if payload.get("scope") != TokenScope.REFRESH:
@@ -277,19 +278,20 @@ class AuthService:
 
         if not db_refresh_token or db_refresh_token.is_revoked:
             await self._token_service.revoke_refresh_token_family(family_id)
-            response.delete_cookie("access_token")
-            response.delete_cookie("refresh_token")
+            if delete_cookies:
+                response.delete_cookie("access_token")
+                response.delete_cookie("refresh_token")
             raise InvalidTokenException()
 
         # Invalidate the consumed token before issuing a new one
         await self._token_service.revoke_refresh_token(jti)
 
-        await self.create_access_token(request, response, user_id, set_cookie)
-        await self.create_refresh_token(request, response, user_id, set_cookie, family_id=family_id)
+        access_token = await self.create_access_token(request, response, user_id, set_cookie)
+        refresh_token = await self.create_refresh_token(request, response, user_id, set_cookie, family_id=family_id)
+        return RefreshResponse(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
-    async def logout_session(self, request: Request, response: Response) -> None:
-        """Revoke the current refresh token family and clear cookies."""
-        refresh_token = request.cookies.get("refresh_token")
+    async def logout_session(self, request: Request, response: Response, refresh_token: str, delete_cookies: bool = True) -> None:
+        """Revoke the current refresh token family."""
         if refresh_token:
             try:
                 payload = self._token_service.decode_token(refresh_token)
@@ -298,11 +300,23 @@ class AuthService:
                     await self._token_service.revoke_refresh_token_family(family_id)
             except Exception:
                 pass
-        response.delete_cookie("access_token")
-        response.delete_cookie("refresh_token")
+        if delete_cookies:
+            response.delete_cookie("access_token")
+            response.delete_cookie("refresh_token")
 
-    async def get_user_from_token(self, token: str) -> UserInternal:
-        """Resolve user from JWT."""
+    async def get_user_from_token(self, token: str, required_scope: TokenScope | None = None) -> UserInternal:
+        """Resolve user from JWT. Raises InvalidTokenException if required_scope doesn't match."""
         payload = self._token_service.decode_token(token)
+        if required_scope is not None and payload.get("scope") != required_scope:
+            raise InvalidTokenException()
         user_id = PydanticObjectId(payload.get("sub"))
         return await self._user_service.get_by_id(user_id)
+
+    async def revoke_refresh_token(self, refresh_token: str) -> None:
+        await self._token_service.revoke_refresh_token(refresh_token)
+
+    async def revoke_refresh_token_family(self, family_id: str) -> None:
+        await self._token_service.revoke_refresh_token_family(family_id)
+    
+    async def revoke_all_refresh_tokens(self, user_id: PydanticObjectId) -> None:
+        await self._token_service.revoke_all_refresh_tokens(user_id)

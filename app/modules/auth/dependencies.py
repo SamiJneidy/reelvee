@@ -1,6 +1,8 @@
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends
 from typing import Annotated
 
+from app.core.enums import TokenScope
+from app.core.security import oauth2_scheme
 from app.core.context import CurrentUser
 from app.modules.auth.schemas.responses import CurrentSessionResponse
 from app.modules.auth.service import AuthService
@@ -34,36 +36,27 @@ def get_auth_service(
 
 
 async def get_current_session(
-    request: Request,
+    token: Annotated[str, Depends(oauth2_scheme)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> CurrentSessionResponse:
-    """Load current session from access_token cookie."""
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token was not found in cookies")
-    user = await auth_service.get_user_from_token(token)
+    """Load current session from Authorization: Bearer access token."""
+    user = await auth_service.get_user_from_token(token, required_scope=TokenScope.ACCESS)
     return CurrentSessionResponse(user=UserResponse.model_validate(user))
 
 
 async def get_request_context(
-    request: Request,
+    token: Annotated[str, Depends(oauth2_scheme)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> CurrentUser:
-    """Get request context."""
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token was not found in cookies")
-    user = await auth_service.get_user_from_token(token)
+    """Resolve current user from Authorization: Bearer access token."""
+    user = await auth_service.get_user_from_token(token, required_scope=TokenScope.ACCESS)
     return CurrentUser(user=user)
 
 
 async def get_user_from_sign_up_complete_token(
-    request: Request,
+    token: Annotated[str, Depends(oauth2_scheme)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> UserResponse:
-    """Resolve user from JWT sign_up_complete_token."""
-    token = request.cookies.get("sign_up_complete_token")
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token was not found in cookies")
-    user = await auth_service.get_user_from_token(token)
+    """Resolve user from Authorization: Bearer sign_up_complete token."""
+    user = await auth_service.get_user_from_token(token, required_scope=TokenScope.SIGN_UP_COMPLETE)
     return UserResponse.model_validate(user)

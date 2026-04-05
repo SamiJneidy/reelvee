@@ -1,5 +1,10 @@
 import secrets
 from passlib.context import CryptContext
+from fastapi.security.oauth2 import OAuth2PasswordBearer
+
+LOGIN_URL = "/v1/auth/swagger-login"
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=LOGIN_URL)
 
 pwd_context = CryptContext(schemes=["bcrypt"])
 

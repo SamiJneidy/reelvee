@@ -1,8 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, model_validator
-from typing import Optional, Self
-
-from app.modules.users.schemas.internal import UserInternal
-from app.shared.schemas.common import Link
+from typing import Self
 
 class SignUpRequest(BaseModel):
     email: EmailStr = Field(..., example="user@example.com")
@@ -31,3 +28,8 @@ class ResetPasswordRequest(BaseModel):
     email: EmailStr = Field(..., example="user@example.com")
     new_password: str = Field(..., example="abcABC123", min_length=8, description="The password must be a minimum of 8 characters in length, containing both uppercase and lowercase English letters and at least one numeric digit.")
     
+class LogoutRequest(BaseModel):
+    refresh_token: str = Field(..., example="refresh_token")
+
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(..., example="refresh_token")

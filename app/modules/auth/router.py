@@ -1,11 +1,10 @@
-from app.modules.users.schemas.responses import UserResponse
-from app.modules.auth.schemas.responses import CurrentSessionResponse, LoginResponse, VerifyEmailResponse
+from app.modules.auth.schemas.responses import RefreshResponse, SwaggerLoginResponse
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.core.context import CurrentUser
 from app.core.database import get_session
-from app.modules.auth.schemas.requests import SignUpRequest
+from app.modules.auth.exceptions import SignUpNotCompletedException
+from app.modules.auth.schemas.requests import RefreshRequest, SignUpRequest, LogoutRequest
 from app.modules.auth.otp.schemas.requests import SendEmailVerificationOTPRequest
 from app.shared.schemas import SingleResponse
 from app.modules.users.schemas import UserResponse
@@ -13,19 +12,15 @@ from app.shared.schemas.responses import SuccessResponse
 
 from .dependencies import (
     get_auth_service,
-    get_user_from_sign_up_complete_token,
     get_current_session,
-    get_request_context,
 )
 from .docs import AuthDocs
 from .schemas import (
     CurrentSessionResponse,
     LoginRequest,
     LoginResponse,
-    RequestEmailVerificationResponse,
     RequestPasswordResetRequest,
     ResetPasswordRequest,
-    ResetPasswordResponse,
     VerifyEmailRequest,
     VerifyEmailResponse,
 )
@@ -74,6 +69,7 @@ async def signup(
 @router.post(
     "/login",
     response_model=SingleResponse[LoginResponse],
+    response_model_exclude_none=True,
     summary=AuthDocs.Login.summary,
     description=AuthDocs.Login.description,
     responses=AuthDocs.Login.responses,
@@ -85,29 +81,30 @@ async def login(
     session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SingleResponse[LoginResponse]:
-    data = await auth_service.login(body, session)
-    
-    if not data.user.is_email_verified:
-        return SingleResponse[LoginResponse](data=data)
-    
-    if not data.user.is_completed:
+    user = await auth_service.login(body, session)
+
+    if not user.is_completed:
         sign_up_complete_token = await auth_service.create_sign_up_complete_token(
-            request, response, data.user.id, set_cookie=True
+            request, response, user.id, set_cookie=False
         )
-        return SingleResponse[LoginResponse](data=data)
-    
+        return SingleResponse[LoginResponse](
+            data=LoginResponse(user=user, sign_up_complete_token=sign_up_complete_token)
+        )
+
     access_token = await auth_service.create_access_token(
-        request, response, data.user.id, set_cookie=True
+        request, response, user.id, set_cookie=False
     )
     refresh_token = await auth_service.create_refresh_token(
-        request, response, data.user.id, set_cookie=True
+        request, response, user.id, set_cookie=False
     )
-    return SingleResponse[LoginResponse](data=data)
+    return SingleResponse[LoginResponse](
+        data=LoginResponse(user=user, access_token=access_token, refresh_token=refresh_token)
+    )
 
 
 @router.post(
     "/refresh",
-    response_model=SuccessResponse,
+    response_model=SingleResponse[RefreshResponse],
     summary=AuthDocs.Refresh.summary,
     description=AuthDocs.Refresh.description,
     responses=AuthDocs.Refresh.responses,
@@ -115,11 +112,11 @@ async def login(
 async def refresh(
     request: Request,
     response: Response,
+    body: RefreshRequest,
     auth_service: AuthService = Depends(get_auth_service),
-) -> None:
-    refresh_token = request.cookies.get("refresh_token")
-    await auth_service.refresh(request, response, refresh_token, set_cookie=True)
-    return SuccessResponse(detail="Access token refreshed successfully")
+) -> SingleResponse[RefreshResponse]:
+    data = await auth_service.refresh(request, response, body.refresh_token, set_cookie=False)
+    return SingleResponse[RefreshResponse](data=data)
 
 
 @router.post(
@@ -131,9 +128,10 @@ async def refresh(
 async def logout(
     request: Request,
     response: Response,
+    body: LogoutRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SuccessResponse:
-    await auth_service.logout_session(request, response)
+    await auth_service.logout_session(request, response, body.refresh_token, delete_cookies=False)
     return SuccessResponse(detail="Logged out successfully")
 
 
@@ -154,7 +152,8 @@ async def request_email_verification(
 
 @router.post(
     "/verify-email",
-    response_model=SingleResponse[UserResponse],
+    response_model=SingleResponse[VerifyEmailResponse],
+    response_model_exclude_none=True,
     summary=AuthDocs.VerifyEmail.summary,
     description=AuthDocs.VerifyEmail.description,
     responses=AuthDocs.VerifyEmail.responses,
@@ -165,13 +164,16 @@ async def verify_email(
     response: Response,
     session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
-) -> SingleResponse[UserResponse]:
+) -> SingleResponse[VerifyEmailResponse]:
     user = await auth_service.verify_email(body, session)
+    sign_up_complete_token = None
     if not user.is_completed:
         sign_up_complete_token = await auth_service.create_sign_up_complete_token(
-            request, response, user.id, set_cookie=True
+            request, response, user.id, set_cookie=False
         )
-    return SingleResponse[UserResponse](data=user)
+    return SingleResponse[VerifyEmailResponse](
+        data=VerifyEmailResponse(user=user, sign_up_complete_token=sign_up_complete_token)
+    )
 
 
 @router.post(
@@ -207,27 +209,29 @@ async def reset_password(
 
 
 @router.post(
-    "/swaggerlogin",
+    "/swagger-login",
     summary=AuthDocs.SwaggerLogin.summary,
     description=AuthDocs.SwaggerLogin.description,
     responses=AuthDocs.SwaggerLogin.responses,
 )
-async def swaggerlogin(
+async def swagger_login(
     request: Request,
     response: Response,
     session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
     login_credentials: OAuth2PasswordRequestForm = Depends(),
-) -> dict[str, str]:
+) -> SwaggerLoginResponse:
     login_data = LoginRequest(
         email=login_credentials.username,
         password=login_credentials.password,
     )
-    login_response = await auth_service.login(login_data, session)
+    user = await auth_service.login(login_data, session)
+    if not user.is_completed:
+        raise SignUpNotCompletedException()
     access_token = await auth_service.create_access_token(
-        request, response, login_response.user.id, set_cookie=True
+        request, response, user.id, set_cookie=True
     )
     refresh_token = await auth_service.create_refresh_token(
-        request, response, login_response.user.id, set_cookie=True
+        request, response, user.id, set_cookie=True
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return SwaggerLoginResponse(access_token=access_token, token_type="bearer")

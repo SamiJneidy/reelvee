@@ -40,7 +40,7 @@ class TokenRepository:
             session=session,
         ).update_many({"$set": {"is_revoked": True}})
 
-    async def revoke_all_refresh_tokens_for_user(self, user_id: str, session=None) -> None:
+    async def revoke_all_refresh_tokens(self, user_id: str, session=None) -> None:
         await RefreshTokenRecord.find(
             RefreshTokenRecord.user_id == user_id,
             session=session,

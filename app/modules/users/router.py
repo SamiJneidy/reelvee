@@ -38,13 +38,23 @@ async def sign_up_complete(
     session=Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
     user_service: UserService = Depends(get_user_service),
-    current_user: UserResponse = Depends(get_user_from_sign_up_complete_token),
+    current_user_to_complete: UserResponse = Depends(get_user_from_sign_up_complete_token),
 ) -> SingleResponse[SignUpCompleteResponse]:
-    data = await user_service.sign_up_complete(current_user.email, body, session)
-    response.delete_cookie("sign_up_complete_token")
-    await auth_service.create_access_token(request, response, current_user.id, set_cookie=True)
-    await auth_service.create_refresh_token(request, response, data.user.id, set_cookie=True)
-    return SingleResponse[SignUpCompleteResponse](data=data)
+    user = await user_service.sign_up_complete(current_user_to_complete.email, body, session)
+    access_token = await auth_service.create_access_token(
+        request, response, current_user_to_complete.id, set_cookie=False
+    )
+    refresh_token = await auth_service.create_refresh_token(
+        request, response, current_user_to_complete.id, set_cookie=False
+    )
+    return SingleResponse[SignUpCompleteResponse](
+        data=SignUpCompleteResponse(
+            user=user,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer"
+        )
+    )
 
 
 @router.post(
@@ -75,10 +85,9 @@ async def confirm_email_change(
     auth_service: AuthService = Depends(get_auth_service),
     user_service: UserService = Depends(get_user_service),
 ) -> SingleResponse[UserResponse]:
-    data = await user_service.confirm_email_change(body, session)
-    await auth_service.create_access_token(request, response, data.id, set_cookie=True)
-    await auth_service.create_refresh_token(request, response, data.id, set_cookie=True)
-    return SingleResponse[UserResponse](data=data)
+    user_internal = await user_service.confirm_email_change(body, session)
+    await auth_service.revoke_all_refresh_tokens(user_internal.id)
+    return SingleResponse[UserResponse](data=UserResponse.model_validate(user_internal))
 
 
 # ---------------------------------------------------------------------

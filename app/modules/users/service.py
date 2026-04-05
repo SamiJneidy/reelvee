@@ -97,7 +97,7 @@ class UserService:
 
     async def sign_up_complete(
         self, email: str, data: SignUpCompleteRequest, session=None
-    ) -> SignUpCompleteResponse:
+    ) -> UserResponse:
         user = await self.get_by_email(email)
         if not user.is_email_verified:
             raise UserNotVerifiedException()
@@ -138,7 +138,7 @@ class UserService:
         )
 
         updated_user = await self._repo.get_by_email(email, session)
-        return SignUpCompleteResponse(user=UserResponse.model_validate(updated_user))
+        return UserResponse.model_validate(updated_user)
 
     # ------------------------------------------------------------------
     # Mutations
@@ -192,12 +192,16 @@ class UserService:
     ) -> UserInternal:
         token_payload = self._token_service.decode_token(data.token)
         token = EmailChangeToken.model_validate(token_payload)
+
         if token.scope != TokenScope.EMAIL_CHANGE:
             raise EmailChangeNotAllowedException("Invalid Token")
+        
         user = await self.get_by_id(PydanticObjectId(token.sub))
         if user.email != token.current_email:
             raise EmailChangeNotAllowedException("Invalid Token. Mismatch!")
+        
         updated_user = await self.update_by_email(token.current_email, {"email": token.new_email}, session)
+        
         return UserInternal.model_validate(updated_user)
 
     async def increment_invalid_login_attempts(self, email: str, session=None) -> UserInternal:

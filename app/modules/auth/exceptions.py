@@ -18,3 +18,18 @@ class PasswordsDontMatchException(BaseAppException):
 class InvalidCredentialsException(BaseAppException):
     detail = "Invalid credentials"
     status_code = status.HTTP_401_UNAUTHORIZED
+
+
+class UserNotVerifiedException(BaseAppException):
+    detail = "Your account is not verified. Verify your account and try again."
+    status_code = status.HTTP_403_FORBIDDEN
+
+
+class SignUpNotCompletedException(BaseAppException):
+    detail = "Your account setup is not complete. Please complete the sign up process to continue."
+    status_code = status.HTTP_403_FORBIDDEN
+
+
+class UserDeletedException(BaseAppException):
+    detail = "Your account has been deleted. Please contact support to restore your account."
+    status_code = status.HTTP_403_FORBIDDEN

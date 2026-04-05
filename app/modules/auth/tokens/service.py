@@ -1,3 +1,4 @@
+from beanie import PydanticObjectId
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -25,8 +26,8 @@ class TokenService:
     async def revoke_refresh_token_family(self, family_id: str) -> None:
         await self.token_repo.revoke_refresh_token_family(family_id)
 
-    async def revoke_all_refresh_tokens_for_user(self, user_id: str) -> None:
-        await self.token_repo.revoke_all_refresh_tokens_for_user(user_id)
+    async def revoke_all_refresh_tokens(self, user_id: PydanticObjectId) -> None:
+        await self.token_repo.revoke_all_refresh_tokens(str(user_id))
 
     # Token generation operations
     def _generate_token(self, payload: dict) -> str:
