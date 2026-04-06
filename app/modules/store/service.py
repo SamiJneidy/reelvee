@@ -217,11 +217,14 @@ class StoreService:
 
         if data.logo is None:
             if old_logo:
-                await self._storage_service.delete_file(old_logo.key)
+                try:
+                    await self._storage_service.delete_file(old_logo.key)
+                except Exception:
+                    pass
             return None
 
         logo = old_logo
-        if logo is not None and logo.url is None:
+        if data.logo.url is None:
             try:
                 logo = await self._storage_service.finalize_file(
                     file=data.logo,
@@ -243,11 +246,14 @@ class StoreService:
 
         if data.config.theme.background_image is None:
             if old_image:
-                await self._storage_service.delete_file(old_image.key)
+                try:
+                    await self._storage_service.delete_file(old_image.key)
+                except Exception:
+                    pass
             return None
 
         image = old_image
-        if image is not None and image.url is None:
+        if data.config.theme.background_image.url is None:
             try:
                 image = await self._storage_service.finalize_file(
                     file=data.config.theme.background_image,
