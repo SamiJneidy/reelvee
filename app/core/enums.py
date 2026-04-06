@@ -140,9 +140,9 @@ class Layout(str, Enum):
 
 
 class ButtonVariant(str, Enum):
-    SOLID   = "SOLID"
+    FILLED   = "FILLED"
     OUTLINE = "OUTLINE"
-    GHOST   = "GHOST"
+    SOFT   = "SOFT"
 
 
 class ButtonShape(str, Enum):
