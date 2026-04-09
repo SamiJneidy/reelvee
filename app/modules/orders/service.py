@@ -39,9 +39,9 @@ class OrderService:
     # -----------------------------------------------------------------
 
     async def get_own_by_id(
-        self, current_user: CurrentUser, id: PydanticObjectId, fetch_links: bool = True
+        self, current_user: CurrentUser, id: PydanticObjectId
     ) -> OrderResponse:
-        order = await self._repo.get_by_id(current_user.user.id, id, fetch_links=fetch_links)
+        order = await self._repo.get_by_id_with_relations(current_user.user.id, id)
         if not order:
             raise OrderNotFoundException()
         return self._to_response(order)
@@ -73,7 +73,12 @@ class OrderService:
         data["source"] = RecordSource.INTERNAL
         data["is_read"] = True  # owner created it, so it's already seen
         order = await self._repo.create(data, session=session)
-        return self._to_response(order)
+        full = await self._repo.get_by_id_with_relations(
+            current_user.user.id, order.id, session=session
+        )
+        if full is None:
+            raise OrderNotFoundException()
+        return self._to_response(full)
 
     async def update_own_by_id(
         self,
@@ -89,6 +94,8 @@ class OrderService:
         updated = await self._repo.update_by_id(
             current_user.user.id, id, update_data, session=session
         )
+        if updated is None:
+            raise OrderNotFoundException()
         return self._to_response(updated)
 
     async def delete_own_by_id(

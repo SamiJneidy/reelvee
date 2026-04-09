@@ -161,3 +161,17 @@ class Font(str, Enum):
     INTER   = "INTER"
     ROBOTO  = "ROBOTO"
     POPPINS = "POPPINS"
+
+
+class OSType(str, Enum):
+    ios     = "ios"
+    android = "android"
+    windows = "windows"
+    macos   = "macos"
+    linux   = "linux"
+    unknown = "unknown"
+
+
+class AnalyticsEventType(str, Enum):
+    store_view = "store_view"
+    item_view  = "item_view"

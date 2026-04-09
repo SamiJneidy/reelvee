@@ -2,7 +2,6 @@ from typing import Any
 
 from beanie import PydanticObjectId
 
-from app.modules.customers.models import Customer
 from app.modules.orders.models import Order
 
 
@@ -38,6 +37,36 @@ class OrderRepository:
             Order.id == id,
             session=session,
         )
+
+    async def get_by_id_with_relations(
+        self, user_id: PydanticObjectId, id: PydanticObjectId, session=None
+    ) -> Order | None:
+        pipeline = [
+            {"$match": {"user_id": user_id, "_id": id}},
+            {
+                "$lookup": {
+                    "from": "customers",
+                    "localField": "customer_id",
+                    "foreignField": "_id",
+                    "as": "customer",
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "items",
+                    "localField": "item_id",
+                    "foreignField": "_id",
+                    "as": "item",
+                }
+            },
+            {"$unwind": {"path": "$item", "preserveNullAndEmptyArrays": True}},
+            {"$unwind": {"path": "$customer", "preserveNullAndEmptyArrays": True}},
+        ]
+        cursor = Order.get_pymongo_collection().aggregate(pipeline, session=session)
+        raw = await cursor.to_list(length=1)
+        if not raw:
+            return None
+        return self._deserialize_order(raw[0])
 
     async def get_list(
         self,
@@ -93,7 +122,7 @@ class OrderRepository:
     async def create(self, data: dict[str, Any], session=None) -> Order:
         order = Order(**data)
         await order.insert(session=session)
-        return order
+        return await self.get_by_id_with_relations(order.user_id, order.id, session=session)
 
     async def update_by_id(
         self,
@@ -113,7 +142,7 @@ class OrderRepository:
             if hasattr(Order, key):
                 setattr(order, key, value)
         await order.save(session=session)
-        return order
+        return await self.get_by_id_with_relations(order.user_id, order.id, session=session)
 
     async def delete_by_id(
         self, user_id: PydanticObjectId, id: PydanticObjectId, session=None

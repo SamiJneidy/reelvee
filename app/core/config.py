@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     aws_bucket: str
     aws_presigned_url_expiration_seconds: int
 
+    # GeoIP — optional, path to MaxMind GeoLite2-Country.mmdb
+    # If not set or file not found, country defaults to "unknown"
+    geoip_db_path: str | None = None
+
     # Mail
     mail_username: str
     mail_password: str

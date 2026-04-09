@@ -13,6 +13,12 @@ from app.modules.categories.models import Category
 from app.modules.customers.models import Customer
 from app.modules.orders.models import Order
 from app.modules.store.models import Store
+from app.modules.analytics.models import (
+    StoreDailyStat,
+    StoreDailyCountry,
+    StoreDailyOS,
+    ItemDailyStat,
+)
 
 # Single client for the app. Created at import; connect in init_db().
 client = AsyncIOMotorClient(
@@ -34,6 +40,10 @@ async def init_db() -> None:
             Customer,
             Order,
             Store,
+            StoreDailyStat,
+            StoreDailyCountry,
+            StoreDailyOS,
+            ItemDailyStat,
         ],
     )
 
