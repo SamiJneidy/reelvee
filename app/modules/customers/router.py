@@ -3,9 +3,9 @@ import math
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, status
 
-from app.core.context import CurrentUser
+from app.core.context import SessionContext
 from app.core.database import get_session
-from app.modules.auth.dependencies import get_request_context
+from app.modules.auth.dependencies import get_current_session
 from app.modules.customers.dependencies import CustomerService, get_customer_service
 from app.modules.customers.docs import CustomerDocs
 from app.modules.customers.schemas import (
@@ -36,7 +36,7 @@ router = APIRouter(
 async def list_customers(
     pagination: Pagination = Depends(),
     filters: CustomerFilters = Depends(),
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     customer_service: CustomerService = Depends(get_customer_service),
 ) -> PaginatedResponse[CustomerResponse]:
     total, customers = await customer_service.get_own_list(
@@ -63,7 +63,7 @@ async def list_customers(
 )
 async def get_customer(
     customer_id: PydanticObjectId,
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     customer_service: CustomerService = Depends(get_customer_service),
 ) -> SingleResponse[CustomerResponse]:
     customer = await customer_service.get_own_by_id(current_user, customer_id)
@@ -83,7 +83,7 @@ async def get_customer(
 )
 async def create_customer(
     body: CustomerCreate,
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     customer_service: CustomerService = Depends(get_customer_service),
     session=Depends(get_session),
 ) -> SingleResponse[CustomerResponse]:
@@ -104,7 +104,7 @@ async def create_customer(
 async def update_customer(
     customer_id: PydanticObjectId,
     body: CustomerUpdate,
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     customer_service: CustomerService = Depends(get_customer_service),
     session=Depends(get_session),
 ) -> SingleResponse[CustomerResponse]:
@@ -126,7 +126,7 @@ async def update_customer(
 )
 async def delete_customer(
     customer_id: PydanticObjectId,
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     customer_service: CustomerService = Depends(get_customer_service),
     session=Depends(get_session),
 ) -> None:

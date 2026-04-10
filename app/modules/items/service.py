@@ -1,7 +1,7 @@
 from beanie import PydanticObjectId
 from slugify import slugify
 
-from app.core.context import CurrentUser
+from app.core.context import SessionContext
 from app.core.enums import PermanentFileUploadPath
 from app.modules.categories.schemas import CategoryResponse
 from app.modules.categories.service import CategoryService
@@ -102,13 +102,13 @@ class ItemService:
     # Owner-scoped (context required)
     # -----------------------------------------------------------------
 
-    async def get_own_by_id(self, current_user: CurrentUser, id: PydanticObjectId) -> ItemResponse:
+    async def get_own_by_id(self, current_user: SessionContext, id: PydanticObjectId) -> ItemResponse:
         item = await self._repo.get_own_by_id(current_user.user.id, id)
         if not item:
             raise ItemNotFoundException()
         return await self._to_item_response(item)
 
-    async def get_own_by_slug(self, current_user: CurrentUser, slug: str) -> ItemResponse:
+    async def get_own_by_slug(self, current_user: SessionContext, slug: str) -> ItemResponse:
         item = await self._repo.get_own_by_slug(current_user.user.id, slug)
         if not item:
             raise ItemNotFoundException()
@@ -116,7 +116,7 @@ class ItemService:
 
     async def get_own_list(
         self,
-        current_user: CurrentUser,
+        current_user: SessionContext,
         skip: int = 0,
         limit: int = 20,
         filters: ItemFilters | None = None,
@@ -133,7 +133,7 @@ class ItemService:
             enriched.append(await self._to_item_response(p))
         return total, enriched
 
-    async def create(self, current_user: CurrentUser, payload: ItemCreate, session=None) -> ItemResponse:
+    async def create(self, current_user: SessionContext, payload: ItemCreate, session=None) -> ItemResponse:
         data = payload.model_dump()
         data["slug"] = await self._generate_slug(current_user.user.id, payload.name)
         data["user_id"] = current_user.user.id
@@ -149,7 +149,7 @@ class ItemService:
 
     async def update_own_by_id(
         self,
-        current_user: CurrentUser,
+        current_user: SessionContext,
         id: PydanticObjectId,
         data: ItemUpdate | ItemUpdateInternal,
         session=None,
@@ -177,14 +177,14 @@ class ItemService:
         
         return await self._to_item_response(updated_item)
 
-    async def delete_thumbnail(self, current_user: CurrentUser, id: PydanticObjectId, session=None) -> None:
+    async def delete_thumbnail(self, current_user: SessionContext, id: PydanticObjectId, session=None) -> None:
         item = await self.get_own_by_id(current_user, id)
         if not item.thumbnail:
             return None
         await self._storage_service.delete_file(item.thumbnail.key)
         await self._repo.update_own_by_id(current_user.user.id, id, {"thumbnail": None}, session=session)
 
-    async def delete_own_by_id(self, current_user: CurrentUser, id: PydanticObjectId, session=None) -> None:
+    async def delete_own_by_id(self, current_user: SessionContext, id: PydanticObjectId, session=None) -> None:
         item = await self._repo.get_own_by_id(current_user.user.id, id, session=session)
         if not item:
             raise ItemNotFoundException()

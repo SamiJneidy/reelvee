@@ -3,9 +3,9 @@ import math
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, status
 
-from app.core.context import CurrentUser
+from app.core.context import SessionContext
 from app.core.database import get_session
-from app.modules.auth.dependencies import get_request_context
+from app.modules.auth.dependencies import get_current_session
 from app.modules.orders.dependencies import OrderService, get_order_service
 from app.modules.orders.docs import OrderDocs
 from app.modules.orders.schemas import (
@@ -37,7 +37,7 @@ router = APIRouter(
 async def list_orders(
     pagination: Pagination = Depends(),
     filters: OrderFilters = Depends(),
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     order_service: OrderService = Depends(get_order_service),
 ) -> PaginatedResponse[OrderResponse]:
     total, orders = await order_service.get_own_list(
@@ -63,7 +63,7 @@ async def list_orders(
     responses=OrderDocs.GetUnreadCount.responses,
 )
 async def get_unread_count(
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     order_service: OrderService = Depends(get_order_service),
 ) -> SingleResponse[int]:
     count = await order_service.get_unread_count(current_user)
@@ -79,7 +79,7 @@ async def get_unread_count(
 )
 async def get_order(
     order_id: PydanticObjectId,
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     order_service: OrderService = Depends(get_order_service),
 ) -> SingleResponse[OrderResponse]:
     order = await order_service.get_own_by_id(current_user, order_id)
@@ -99,7 +99,7 @@ async def get_order(
 )
 async def create_order(
     body: OrderCreate,
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     order_service: OrderService = Depends(get_order_service),
     session=Depends(get_session),
 ) -> SingleResponse[OrderResponse]:
@@ -120,7 +120,7 @@ async def create_order(
 async def update_order(
     order_id: PydanticObjectId,
     body: OrderUpdate,
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     order_service: OrderService = Depends(get_order_service),
     session=Depends(get_session),
 ) -> SingleResponse[OrderResponse]:
@@ -140,7 +140,7 @@ async def update_order(
 )
 async def delete_order(
     order_id: PydanticObjectId,
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     order_service: OrderService = Depends(get_order_service),
     session=Depends(get_session),
 ) -> None:

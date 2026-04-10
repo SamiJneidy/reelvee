@@ -5,7 +5,7 @@ from beanie import PydanticObjectId
 from beanie.exceptions import RevisionIdWasChanged
 from pymongo.errors import DuplicateKeyError
 
-from app.core.context import CurrentUser
+from app.core.context import SessionContext
 from app.core.enums import TokenScope, UserStatus, UserStep
 from app.core.exceptions.exceptions import DuplicateKeyErrorException
 from app.core.security import verify_password
@@ -172,7 +172,7 @@ class UserService:
         return UserInternal.model_validate(updated_user)
 
     async def request_email_change(
-        self, current_user: CurrentUser, data: RequestEmailChangeRequest, session=None
+        self, current_user: SessionContext, data: RequestEmailChangeRequest, session=None
     ) -> None:
         user = await self.get_by_id_in_db(current_user.user.id)
         if not verify_password(data.password, user.password):

@@ -4,7 +4,7 @@ from app.core.enums import OSType
 
 
 @dataclass(frozen=True, slots=True)
-class ClientRequestMetadata:
+class IPMetadata:
     """Parsed client info from HTTP request (IP, GeoIP, User-Agent).
 
     Built by `get_client_request_metadata` dependency; safe to pass into

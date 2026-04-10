@@ -1,6 +1,6 @@
 from beanie import PydanticObjectId
 
-from app.core.context import CurrentUser
+from app.core.context import SessionContext
 from app.core.enums import OrderStatus, RecordSource
 from app.modules.customers.service import CustomerService
 from app.modules.orders.exceptions import ItemNotBelongToUserException, OrderNotFoundException
@@ -39,7 +39,7 @@ class OrderService:
     # -----------------------------------------------------------------
 
     async def get_own_by_id(
-        self, current_user: CurrentUser, id: PydanticObjectId
+        self, current_user: SessionContext, id: PydanticObjectId
     ) -> OrderResponse:
         order = await self._repo.get_by_id_with_relations(current_user.user.id, id)
         if not order:
@@ -48,7 +48,7 @@ class OrderService:
 
     async def get_own_list(
         self,
-        current_user: CurrentUser,
+        current_user: SessionContext,
         skip: int = 0,
         limit: int = 10,
         filters: OrderFilters | None = None,
@@ -62,11 +62,11 @@ class OrderService:
         )
         return total, [self._to_response(o) for o in orders]
 
-    async def get_unread_count(self, current_user: CurrentUser) -> int:
+    async def get_unread_count(self, current_user: SessionContext) -> int:
         return await self._repo.count_unread(current_user.user.id)
 
     async def create(
-        self, current_user: CurrentUser, payload: OrderCreate, session=None
+        self, current_user: SessionContext, payload: OrderCreate, session=None
     ) -> OrderResponse:
         data = payload.model_dump()
         data["user_id"] = current_user.user.id
@@ -82,7 +82,7 @@ class OrderService:
 
     async def update_own_by_id(
         self,
-        current_user: CurrentUser,
+        current_user: SessionContext,
         id: PydanticObjectId,
         payload: OrderUpdate,
         session=None,
@@ -99,7 +99,7 @@ class OrderService:
         return self._to_response(updated)
 
     async def delete_own_by_id(
-        self, current_user: CurrentUser, id: PydanticObjectId, session=None
+        self, current_user: SessionContext, id: PydanticObjectId, session=None
     ) -> None:
         order = await self._repo.get_by_id(current_user.user.id, id)
         if not order:
@@ -117,8 +117,6 @@ class OrderService:
         session=None,
     ) -> None:
         item = await self._item_service.get_by_id(user_id, payload.item_id)
-        if item.user_id != user_id:
-            raise ItemNotBelongToUserException()
         if not item.is_visible:
             raise ItemNotFoundException()
 

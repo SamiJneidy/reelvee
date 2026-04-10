@@ -1,5 +1,6 @@
 from datetime import date
 
+from beanie import PydanticObjectId
 from fastapi import Query
 from pydantic import BaseModel, model_validator
 
@@ -9,7 +10,7 @@ from app.core.enums import AnalyticsEventType
 class AnalyticsEventCreate(BaseModel):
     event_type: AnalyticsEventType
     store_url: str
-    item_id: str | None = None    # required when event_type == item_view
+    item_id: PydanticObjectId | None = None    # required when event_type == item_view
     utm_source: str | None = None   # optional, sent by frontend from URL params
 
     @model_validator(mode="after")
@@ -20,7 +21,7 @@ class AnalyticsEventCreate(BaseModel):
 
 
 class AnalyticsPeriodQuery(BaseModel):
-    days: int | None = Query(None, ge=1, le=365, description="Last N days (default 30)"),
+    days: int | None = Query(10, ge=1, le=365, description="Last N days (default 30)"),
     from_date: date | None = Query(None, description="Start date (inclusive), e.g. 2026-01-01"),
     to_date: date | None = Query(None, description="End date (inclusive), e.g. 2026-04-07"),
 

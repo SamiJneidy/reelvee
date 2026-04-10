@@ -2,7 +2,7 @@ from beanie import PydanticObjectId
 from pymongo.errors import DuplicateKeyError
 from beanie.exceptions import RevisionIdWasChanged
 
-from app.core.context import CurrentUser
+from app.core.context import SessionContext
 from app.core.enums import CustomerStatus, RecordSource
 from app.modules.customers.exceptions import (
     CustomerAlreadyExistsException,
@@ -35,7 +35,7 @@ class CustomerService:
     # -----------------------------------------------------------------
 
     async def get_own_by_id(
-        self, current_user: CurrentUser, id: PydanticObjectId
+        self, current_user: SessionContext, id: PydanticObjectId
     ) -> CustomerResponse:
         customer = await self._repo.get_by_id(current_user.user.id, id)
         if not customer:
@@ -44,7 +44,7 @@ class CustomerService:
 
     async def get_own_list(
         self,
-        current_user: CurrentUser,
+        current_user: SessionContext,
         skip: int = 0,
         limit: int = 10,
         filters: CustomerFilters | None = None,
@@ -59,7 +59,7 @@ class CustomerService:
         return total, [self._to_response(c) for c in customers]
 
     async def create(
-        self, current_user: CurrentUser, payload: CustomerCreate, session=None
+        self, current_user: SessionContext, payload: CustomerCreate, session=None
     ) -> CustomerResponse:
         data = payload.model_dump()
         data["user_id"] = current_user.user.id
@@ -73,7 +73,7 @@ class CustomerService:
 
     async def update_own_by_id(
         self,
-        current_user: CurrentUser,
+        current_user: SessionContext,
         id: PydanticObjectId,
         payload: CustomerUpdate,
         session=None,
@@ -91,7 +91,7 @@ class CustomerService:
         return self._to_response(updated)
 
     async def delete_own_by_id(
-        self, current_user: CurrentUser, id: PydanticObjectId, session=None
+        self, current_user: SessionContext, id: PydanticObjectId, session=None
     ) -> None:
         customer = await self._repo.get_by_id(current_user.user.id, id)
         if not customer:

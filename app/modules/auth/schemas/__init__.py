@@ -6,7 +6,7 @@ from .requests import (
     VerifyEmailRequest,
 )
 from .responses import (
-    CurrentSessionResponse,
+    GetMeResponse,
     LoginResponse,
     RequestEmailVerificationResponse,
     ResetPasswordResponse,

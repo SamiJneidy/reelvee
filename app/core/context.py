@@ -1,6 +1,8 @@
 from dataclasses import dataclass
-from app.modules.users.schemas.internal import UserInDB
+from app.modules.users.schemas import UserResponse
+from app.modules.store.schemas import StoreResponse
 
 @dataclass
-class CurrentUser:
-    user: UserInDB
+class SessionContext:
+    user: UserResponse
+    store: StoreResponse

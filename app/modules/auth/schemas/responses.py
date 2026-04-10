@@ -30,7 +30,7 @@ class LoginResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class CurrentSessionResponse(BaseModel):
+class GetMeResponse(BaseModel):
     user: UserResponse
     model_config = ConfigDict(from_attributes=True)
 

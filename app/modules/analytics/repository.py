@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, date, timezone, timedelta
+from datetime import datetime, date
 
 from beanie import PydanticObjectId
 from beanie.operators import Inc

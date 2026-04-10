@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Request, Response, status
 from typing import Annotated
 
-from app.core.context import CurrentUser
+from app.core.context import SessionContext
 from app.core.database import get_session
-from app.modules.auth.dependencies import get_auth_service, get_request_context, get_user_from_sign_up_complete_token
+from app.modules.auth.dependencies import get_auth_service, get_current_session, get_user_from_sign_up_complete_token
 from app.modules.auth.service import AuthService
 from app.modules.users.schemas.requests import ChangeEmailRequest, RequestEmailChangeRequest, SignUpCompleteRequest
 from app.modules.users.schemas.responses import SignUpCompleteResponse, UserResponse
@@ -65,7 +65,7 @@ async def sign_up_complete(
 async def request_email_change(
     body: RequestEmailChangeRequest,
     user_service: UserService = Depends(get_user_service),
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     session=Depends(get_session),
 ) -> SuccessResponse:
     await user_service.request_email_change(current_user, body, session)
@@ -102,7 +102,7 @@ async def confirm_email_change(
 async def update_current_user(
     body: UserUpdate,
     user_service: UserService = Depends(get_user_service),
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     session=Depends(get_session),
 ) -> SingleResponse[UserResponse]:
     data = await user_service.update_by_email(
@@ -124,7 +124,7 @@ async def update_current_user(
 )
 async def delete_current_user(
     user_service: Annotated[UserService, Depends(get_user_service)],
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     session=Depends(get_session),
 ) -> None:
     await user_service.delete_user(current_user.user.email, session=session)

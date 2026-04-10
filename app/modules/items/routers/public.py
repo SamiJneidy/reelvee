@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from app.shared.schemas import SingleResponse
 from app.shared.schemas.pagination import Pagination, PaginatedResponse
 from app.modules.items.dependencies import ItemService, get_item_service
-from app.modules.users.dependencies import UserService, get_user_service
+from app.modules.store.dependencies import StoreService, get_store_service
 from app.modules.items.schemas import (
     ItemFilters,
     ItemPublicResponse,
@@ -30,12 +30,12 @@ async def list_items(
     store_url: str,
     pagination: Pagination = Depends(),
     filters: ItemFilters = Depends(),
-    user_service: UserService = Depends(get_user_service),
+    store_service: StoreService = Depends(get_store_service),
     item_service: ItemService = Depends(get_item_service),
 ) -> PaginatedResponse[ItemPublicResponse]:
-    user = await user_service.get_by_store_url(store_url)
+    store = await store_service.get_by_store_url(store_url)
     total, items = await item_service.get_list(
-        user_id=user.id,
+        user_id=store.user_id,
         skip=pagination.skip,
         limit=pagination.limit,
         filters=filters,
@@ -59,9 +59,9 @@ async def list_items(
 async def get_item_by_slug(
     store_url: str,
     slug: str,
-    user_service: UserService = Depends(get_user_service),
+    store_service: StoreService = Depends(get_store_service),
     item_service: ItemService = Depends(get_item_service),
 ) -> SingleResponse[ItemPublicResponse]:
-    user = await user_service.get_by_store_url(store_url)
-    item = await item_service.get_by_slug(user.id, slug)
+    store = await store_service.get_by_store_url(store_url)
+    item = await item_service.get_by_slug(store.user_id, slug)
     return SingleResponse[ItemPublicResponse](data=item)

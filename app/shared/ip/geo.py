@@ -1,11 +1,11 @@
 import os
 
 from app.core.config import settings
+from geoip2.database import Reader as GeoIPReader
 
 _geoip_reader = None
 _geoip_initialized = False
 
-import geoip2.database
 
 def _get_geoip_reader():
     global _geoip_reader, _geoip_initialized
@@ -15,8 +15,7 @@ def _get_geoip_reader():
     db_path = settings.geoip_db_path
     if db_path and os.path.exists(db_path):
         try:
-
-            _geoip_reader = geoip2.database.Reader(db_path)
+            _geoip_reader = GeoIPReader(db_path)
         except Exception:
             _geoip_reader = None
     return _geoip_reader

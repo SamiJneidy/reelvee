@@ -1,4 +1,3 @@
-import asyncio
 from datetime import date, datetime, timedelta, timezone
 
 from beanie import PydanticObjectId
@@ -19,7 +18,7 @@ from app.modules.analytics.schemas.responses import (
     StoreAnalyticsOverview,
     StoreAnalyticsResponse,
 )
-from app.shared.client_metadata import ClientRequestMetadata
+from app.shared.ip.schemas import IPMetadata
 from app.shared.schemas.common import PeriodInfo
 from app.shared.utils.time_helper import resolve_period, today_utc
 
@@ -35,7 +34,7 @@ class AnalyticsService:
         self,
         store_id: PydanticObjectId,
         payload: AnalyticsEventCreate,
-        client: ClientRequestMetadata,
+        client: IPMetadata,
     ) -> None:
         if client.is_bot:
             return
@@ -53,7 +52,7 @@ class AnalyticsService:
         elif payload.event_type == AnalyticsEventType.item_view:
             await self._repo.record_item_view(
                 store_id=store_id,
-                item_id=payload.item_id,
+                item_id=PydanticObjectId(payload.item_id),
                 date=today,
             )
 

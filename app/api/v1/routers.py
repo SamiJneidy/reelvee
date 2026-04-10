@@ -25,12 +25,15 @@ router = APIRouter(
 router.include_router(auth_router)
 router.include_router(users_router)
 router.include_router(store_router)
+
+router.include_router(analytics_public_router)
+router.include_router(analytics_private_router) ## analytics router comes before items router to avoid conflict
+
 router.include_router(items_public_router)
 router.include_router(items_private_router)
+
 router.include_router(storage_router)
 router.include_router(categories_router)
 router.include_router(customers_router)
 router.include_router(orders_private_router)
 router.include_router(orders_public_router)
-router.include_router(analytics_public_router)
-router.include_router(analytics_private_router)

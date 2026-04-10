@@ -1,3 +1,4 @@
+from app.core.context import SessionContext
 from app.modules.auth.schemas.responses import RefreshResponse, SwaggerLoginResponse
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -16,7 +17,7 @@ from .dependencies import (
 )
 from .docs import AuthDocs
 from .schemas import (
-    CurrentSessionResponse,
+    GetMeResponse,
     LoginRequest,
     LoginResponse,
     RequestPasswordResetRequest,
@@ -37,15 +38,16 @@ router = APIRouter(
 # ---------------------------------------------------------------------
 @router.get(
     "/me",
-    response_model=SingleResponse[CurrentSessionResponse],
+    response_model=SingleResponse[GetMeResponse],
     summary=AuthDocs.GetMe.summary,
     description=AuthDocs.GetMe.description,
     responses=AuthDocs.GetMe.responses,
 )
 async def me(
-    current_session: CurrentSessionResponse = Depends(get_current_session),
-) -> SingleResponse[CurrentSessionResponse]:
-    return SingleResponse[CurrentSessionResponse](data=current_session)
+    current_session: SessionContext = Depends(get_current_session),
+) -> SingleResponse[GetMeResponse]:
+    data = GetMeResponse(user=current_session.user)
+    return SingleResponse[GetMeResponse](data=data)
 
 # ---------------------------------------------------------------------
 # POST

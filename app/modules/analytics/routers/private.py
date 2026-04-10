@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends
 
 from beanie import PydanticObjectId
 
-from app.core.context import CurrentUser
-from app.modules.auth.dependencies import get_request_context
+from app.core.context import SessionContext
+from app.modules.auth.dependencies import get_current_session
 from app.modules.analytics.dependencies import AnalyticsService, get_analytics_service
 from app.modules.analytics.schemas import AnalyticsPeriodQuery
 from app.modules.analytics.schemas.responses import (
@@ -30,11 +30,12 @@ router = APIRouter(
 )
 async def get_store_analytics(
     period: AnalyticsPeriodQuery = Depends(),
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ) -> SingleResponse[StoreAnalyticsResponse]:
     data = await analytics_service.get_store_analytics(
         user_id=current_user.user.id,
+        store_id=current_user.store.id,
         days=period.days,
         from_date=period.from_date,
         to_date=period.to_date,
@@ -54,12 +55,13 @@ async def get_store_analytics(
 async def get_item_analytics(
     item_id: PydanticObjectId,
     period: AnalyticsPeriodQuery = Depends(),
-    current_user: CurrentUser = Depends(get_request_context),
+    current_user: SessionContext = Depends(get_current_session),
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ) -> SingleResponse[ItemAnalyticsResponse]:
     data = await analytics_service.get_item_analytics(
         user_id=current_user.user.id,
         item_id=item_id,
+        store_id=current_user.store.id,
         days=period.days,
         from_date=period.from_date,
         to_date=period.to_date,
