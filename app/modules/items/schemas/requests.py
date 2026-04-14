@@ -9,7 +9,7 @@ class ItemCreate(BaseModel):
     name: str = Field(..., min_length=1, description="Name is required")
     description: str | None = Field(None, min_length=1, max_length=250, description="Item description, max 250 characters")
     price: float = Field(..., ge=1, description="Price is required")
-    cost: float | None = Field(None, ge=0, description="Item cost")
+    cost: float = Field(0.0, ge=0, description="Item cost")
     thumbnail: FileInput | None = Field(None, description="Item thumbnail")
     images: list[FileInput] = Field([], description="Item images")
     categories: list[PydanticObjectId] = Field([], description="Item categories")
@@ -21,14 +21,14 @@ class ItemCreate(BaseModel):
 
 
 class ItemUpdate(BaseModel):
-    name: str | None = Field(None, min_length=1)
+    name: str = Field(None, min_length=1)
     description: str | None = Field(None, min_length=1, max_length=250)
-    price: float | None = Field(None, ge=1)
-    cost: float | None = None
+    price: float = Field(None, ge=1)
+    cost: float = Field(None, ge=0)
     thumbnail: FileInput | None = Field(None, description="Item thumbnail")
-    images: list[FileInput] | None = None
-    categories: list[PydanticObjectId] | None = None
-    tags: list[str] | None = None
-    status: ItemStatus | None = None
-    is_visible: bool | None = None
-    attributes: list[ItemAttribute] | None = None
+    images: list[FileInput] = Field([], description="Item images")
+    categories: list[PydanticObjectId] = Field([], description="Item categories")
+    tags: list[str] = Field([], description="Item tags")
+    status: ItemStatus = Field(None, description="Item status")
+    is_visible: bool = Field(None, description="Item visibility")
+    attributes: list[ItemAttribute] = Field([], description="Item attributes (name, value pairs)")

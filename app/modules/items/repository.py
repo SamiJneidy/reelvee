@@ -13,6 +13,8 @@ class ItemRepository:
         filters_list = []
         if filters.get("status") is not None:
             filters_list.append(Item.status == filters["status"])
+        if filters.get("type") is not None:
+            filters_list.append(Item.type == filters["type"])
         if filters.get("is_visible") is not None:
             filters_list.append(Item.is_visible == filters["is_visible"])
         if filters.get("name"):

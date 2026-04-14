@@ -5,7 +5,7 @@ import mimetypes
 import uuid
 
 from app.core.config import settings
-from app.modules.storage.exceptions import FileDeleteException, FileMoveException, FileUploadException
+from app.modules.storage.exceptions import FileDeleteException, FileFinalizeException, FileMoveException, FileReplaceException, FileUploadException
 from app.modules.storage.schemas import FileInput, FileResponse, PresignedURLRequest, PresignedURLResponse
 from app.shared.utils.file_helper import FileHelper
 
@@ -60,12 +60,15 @@ class StorageService:
                 CopySource=f"{settings.aws_bucket}/{source_key}",
                 Key=destination_key,
             )
+        except Exception:
+            raise FileMoveException(detail="Failed to copy file")
+        try:
             await self.s3_client.delete_object(
                 Bucket=settings.aws_bucket,
                 Key=source_key,
             )
         except Exception:
-            raise FileMoveException()
+            raise FileMoveException(detail="Failed to delete source file")
 
 
     async def finalize_file(self, file: FileInput, destination_path: str) -> FileResponse:
@@ -74,7 +77,10 @@ class StorageService:
             return file
         extension = file.key.split(".")[-1]
         destination_key = f"{destination_path}/{file.id}.{extension}"
-        await self.move_file(file.key, destination_key)
+        try:
+            await self.move_file(file.key, destination_key)
+        except FileMoveException:
+            raise FileFinalizeException(detail="Failed to move file")
         return FileResponse(id=file.id, key=destination_key, url=self.get_file_url(destination_key))
 
 
@@ -86,16 +92,21 @@ class StorageService:
     ) -> FileResponse:
         """Finalize a new file and replace an old file if it exists. Returns the new file. The old file will be deleted if it exists."""
         if new_file.url:
-            return FileResponse.model_validate(new_file)
-        
-        finalized_file = await self.finalize_file(
-            file=new_file,
-            destination_path=destination_path
-        )
+            finalized_file = FileResponse.model_validate(new_file)
+        else:
+            try:
+                finalized_file = await self.finalize_file(
+                    file=new_file,
+                    destination_path=destination_path
+                )
+            except FileFinalizeException:
+                raise FileReplaceException(detail="Failed to finalize file")
         
         if old_file:
-            await self.delete_file(old_file.key)
-        
+            try:
+                await self.delete_file(old_file.key)
+            except FileDeleteException:
+                raise FileReplaceException(detail="Failed to delete old file")
         return finalized_file
 
 
