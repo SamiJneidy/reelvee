@@ -5,7 +5,13 @@ from beanie.exceptions import RevisionIdWasChanged
 from app.core.exceptions.exceptions import DuplicateKeyErrorException
 from app.modules.categories.exceptions import CategoryAlreadyExistsException, CategoryNotFoundException
 from app.modules.categories.repository import CategoryRepository
-from app.modules.categories.schemas import CategoryCreate, CategoryInternal, CategoryResponse, CategoryUpdate
+from app.modules.categories.schemas import (
+    CategoryCreate,
+    CategoryFilters,
+    CategoryInternal,
+    CategoryResponse,
+    CategoryUpdate,
+)
 
 
 class CategoryService:
@@ -22,11 +28,14 @@ class CategoryService:
         self,
         skip: int = 0,
         limit: int = 20,
+        filters: CategoryFilters | None = None,
         session=None,
     ) -> tuple[int, list[CategoryResponse]]:
+        filter_dict = filters.model_dump(exclude_none=True) if filters else None
         total, categories = await self._repo.get_categories(
             skip=skip,
             limit=limit,
+            filters=filter_dict,
             session=session,
         )
         return total, [CategoryResponse.model_validate(category) for category in categories]

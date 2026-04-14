@@ -13,7 +13,7 @@ class CategoryDocs:
         summary = "List categories"
         description = (
             "Returns a paginated list of categories sorted by name. "
-            "Use query parameters `page` and `limit`."
+            "Use query parameters `page`, `limit`, and optional `name` for filtering."
         )
 
     class GetCategory:

@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, status
 from app.core.database import get_session
 from app.modules.categories.dependencies import CategoryService, get_category_service
 from app.modules.categories.docs import CategoryDocs
-from app.modules.categories.schemas import CategoryCreate, CategoryResponse, CategoryUpdate
+from app.modules.categories.schemas import (
+    CategoryCreate,
+    CategoryFilters,
+    CategoryResponse,
+    CategoryUpdate,
+)
 from app.shared.schemas import SingleResponse
 from app.shared.schemas.pagination import Pagination, PaginatedResponse
 from app.shared.schemas.responses import SuccessResponse
@@ -26,11 +31,13 @@ router = APIRouter(
 )
 async def list_categories(
     pagination: Pagination = Depends(),
+    filters: CategoryFilters = Depends(),
     category_service: CategoryService = Depends(get_category_service),
 ) -> PaginatedResponse[CategoryResponse]:
     total, data = await category_service.get_categories(
         skip=pagination.skip,
         limit=pagination.limit,
+        filters=filters,
     )
     return PaginatedResponse[CategoryResponse](
         data=data,

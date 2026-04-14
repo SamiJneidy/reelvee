@@ -1,9 +1,21 @@
+import re
+from typing import Any
+
 from beanie import PydanticObjectId
 
 from app.modules.categories.models import Category
 
 
 class CategoryRepository:
+    def _build_filters(self, filters: dict[str, Any] | None = None) -> list:
+        filters = filters or {}
+        filters_list = []
+        if filters.get("name"):
+            filters_list.append(
+                {"name": {"$regex": re.escape(filters["name"].strip()), "$options": "i"}}
+            )
+        return filters_list
+
     async def get_by_id(self, id: PydanticObjectId, session=None) -> Category | None:
         return await Category.get(id, session=session)
 
@@ -14,9 +26,11 @@ class CategoryRepository:
         self,
         skip: int = 0,
         limit: int = 20,
+        filters: dict[str, Any] | None = None,
         session=None,
     ) -> tuple[int, list[Category]]:
-        query = Category.find(session=session)
+        filters_list = self._build_filters(filters)
+        query = Category.find(*filters_list, session=session)
         total = await query.count()
         categories = await query.sort(Category.name).skip(skip).limit(limit).to_list()
         return total, categories
