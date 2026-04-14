@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from beanie import PydanticObjectId
@@ -7,26 +8,30 @@ from app.modules.orders.models import Order, OrderCounter
 
 class OrderRepository:
 
-    def _build_filter_list(
-        self, filters: dict[str, Any] | None = None
-    ) -> list:
+    def _build_match_filter(
+        self, user_id: PydanticObjectId, filters: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         filters = filters or {}
-        filters_list = []
+        match_filter: dict[str, Any] = {"user_id": user_id}
         if filters.get("status") is not None:
-            filters_list.append(Order.status == filters["status"])
+            match_filter["status"] = filters["status"]
         if filters.get("is_read") is not None:
-            filters_list.append(Order.is_read == filters["is_read"])
+            match_filter["is_read"] = filters["is_read"]
         if filters.get("source") is not None:
-            filters_list.append(Order.source == filters["source"])
+            match_filter["source"] = filters["source"]
         if filters.get("customer_id") is not None:
-            filters_list.append(Order.customer_id == filters["customer_id"])
+            match_filter["customer_id"] = filters["customer_id"]
         if filters.get("item_id") is not None:
-            filters_list.append(Order.item_id == filters["item_id"])
+            match_filter["item_id"] = filters["item_id"]
         if filters.get("delivery_status") is not None:
-            filters_list.append(Order.delivery_status == filters["delivery_status"])
+            match_filter["delivery_status"] = filters["delivery_status"]
         if filters.get("reference_number") is not None:
-            filters_list.append(Order.reference_number == filters["reference_number"])
-        return filters_list
+            # "Like" search: contains match, safely escaped.
+            match_filter["reference_number"] = {
+                "$regex": re.escape(filters["reference_number"]),
+                "$options": "i",
+            }
+        return match_filter
 
     def _deserialize_order(self, raw: dict[str, Any]) -> Order:
         return Order.model_validate(raw)
@@ -78,15 +83,16 @@ class OrderRepository:
         filters: dict[str, Any] | None = None,
         session=None,
     ) -> tuple[int, list[Order]]:
-        filters_list = self._build_filter_list(filters)
-        filters_list.append(Order.user_id == user_id)
+        match_filter = self._build_match_filter(user_id=user_id, filters=filters)
         # Count on the raw collection — no join needed, hits the index directly.
-        total = await Order.find(*filters_list, session=session).count()
+        total = await Order.get_pymongo_collection().count_documents(
+            match_filter, session=session
+        )
 
         # Paginate first, then join — $lookup only runs on the page (e.g. 10
         # docs) instead of all matching orders.
         pipeline = [
-            {"$match": filters},
+            {"$match": match_filter},
             {"$sort": {"created_at": -1}},
             {"$skip": skip},
             {"$limit": limit},
@@ -109,7 +115,7 @@ class OrderRepository:
         # which is not a coroutine in Motor 3.x. Use Motor directly instead:
         # collection.aggregate() returns a cursor synchronously, and its
         # .to_list() is the awaitable part.
-        cursor = Order.get_pymongo_collection().aggregate(pipeline)
+        cursor = Order.get_pymongo_collection().aggregate(pipeline, session=session)
         raw_orders = await cursor.to_list(length=None)
         orders = [self._deserialize_order(raw) for raw in raw_orders]
         return total, orders
