@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from beanie import PydanticObjectId, Link
+from beanie import Document, PydanticObjectId, Link
 from pydantic import BaseModel
 from pymongo import ASCENDING, DESCENDING, IndexModel
 
@@ -14,6 +14,21 @@ from app.core.enums import (
 from app.modules.customers.models import Customer
 from app.modules.items.models import Item
 from app.shared.models.base import BaseDocument
+
+
+class OrderCounter(Document):
+    """Per-store sequential counter for order reference numbers.
+
+    One document exists per store (keyed by the owner's user_id as ``_id``).
+    The ``seq`` field holds the last assigned reference number; it is
+    incremented atomically via ``find_one_and_update`` so concurrent order
+    creation never produces duplicate numbers.
+    """
+
+    seq: int = 0
+
+    class Settings:
+        name = "order_counters"
 
 
 class PaymentDetails(BaseModel):
@@ -47,6 +62,9 @@ class Order(BaseDocument):
     status: OrderStatus = OrderStatus.NEW
     is_read: bool = False
 
+    # Reference
+    reference_number: str | None = None  # per-store sequential number, set by the service on create
+
     # Details
     customer_message: str | None = None
     address: str | None = None
@@ -60,4 +78,9 @@ class Order(BaseDocument):
             IndexModel([("user_id", ASCENDING), ("is_read", ASCENDING)]),
             IndexModel([("customer_id", ASCENDING), ("created_at", DESCENDING)]),
             IndexModel([("user_id", ASCENDING), ("item_id", ASCENDING)]),
+            IndexModel(
+                [("user_id", ASCENDING), ("reference_number", ASCENDING)],
+                unique=True,
+                sparse=True,
+            ),
         ]

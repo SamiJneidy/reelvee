@@ -5,6 +5,7 @@ from app.core.enums import DeliveryStatus, OrderStatus, RecordSource
 
 
 class OrderFilters(BaseModel):
+    reference_number: str | None = None
     status: OrderStatus | None = None
     is_read: bool | None = None
     source: RecordSource | None = None

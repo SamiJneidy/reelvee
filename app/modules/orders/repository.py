@@ -2,7 +2,7 @@ from typing import Any
 
 from beanie import PydanticObjectId
 
-from app.modules.orders.models import Order
+from app.modules.orders.models import Order, OrderCounter
 
 
 class OrderRepository:
@@ -24,6 +24,8 @@ class OrderRepository:
             filters_list.append(Order.item_id == filters["item_id"])
         if filters.get("delivery_status") is not None:
             filters_list.append(Order.delivery_status == filters["delivery_status"])
+        if filters.get("reference_number") is not None:
+            filters_list.append(Order.reference_number == filters["reference_number"])
         return filters_list
 
     def _deserialize_order(self, raw: dict[str, Any]) -> Order:
@@ -118,6 +120,25 @@ class OrderRepository:
             Order.is_read == False,
             session=session,
         ).count()
+
+    async def next_reference_number(
+        self, user_id: PydanticObjectId, session=None
+    ) -> int:
+        """Return the next reference number for a store's orders.
+
+        Delegates to the ``OrderCounter`` collection via an atomic
+        ``find_one_and_update`` with ``$inc`` + ``upsert``.  A single atomic
+        write means concurrent order creation never produces duplicate numbers,
+        with no application-level locking or transactions required.
+        """
+        result = await OrderCounter.get_motor_collection().find_one_and_update(
+            {"_id": user_id},
+            {"$inc": {"seq": 1}},
+            upsert=True,
+            return_document=True,
+            session=session,
+        )
+        return result["seq"]
 
     async def create(self, data: dict[str, Any], session=None) -> Order:
         order = Order(**data)

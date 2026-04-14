@@ -72,6 +72,8 @@ class OrderService:
         data["user_id"] = current_user.user.id
         data["source"] = RecordSource.INTERNAL
         data["is_read"] = True  # owner created it, so it's already seen
+        seq = await self._repo.next_reference_number(current_user.user.id, session=session)
+        data["reference_number"] = f"{seq:06d}"
         order = await self._repo.create(data, session=session)
         full = await self._repo.get_by_id_with_relations(
             current_user.user.id, order.id, session=session
@@ -133,4 +135,6 @@ class OrderService:
         data["source"] = RecordSource.WEB
         data["status"] = OrderStatus.NEW
         data["is_read"] = False
+        seq = await self._repo.next_reference_number(user_id, session=session)
+        data["reference_number"] = f"{seq:06d}"
         await self._repo.create(data, session=session)

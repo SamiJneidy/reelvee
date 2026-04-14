@@ -158,9 +158,14 @@ class BackgroundType(str, Enum):
 
 
 class Font(str, Enum):
-    INTER   = "INTER"
-    ROBOTO  = "ROBOTO"
-    POPPINS = "POPPINS"
+    INTER = "INTER",
+    ROBOTO = "ROBOTO",
+    POPPINS = "POPPINS",
+    LATO = "LATO",
+    MONTSERRAT = "MONTSERRAT",
+    SEKUYA = "SEKUYA",
+    RUBIK = "RUBIK",
+    ARCHIVO_BLACK = "ARCHIVO_BLACK"
 
 
 class OSType(str, Enum):
