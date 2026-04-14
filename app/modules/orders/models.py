@@ -81,6 +81,6 @@ class Order(BaseDocument):
             IndexModel(
                 [("user_id", ASCENDING), ("reference_number", ASCENDING)],
                 unique=True,
-                sparse=True,
+                partialFilterExpression={"reference_number": {"$type": "string"}},
             ),
         ]

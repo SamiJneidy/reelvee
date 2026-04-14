@@ -131,7 +131,7 @@ class OrderRepository:
         write means concurrent order creation never produces duplicate numbers,
         with no application-level locking or transactions required.
         """
-        result = await OrderCounter.get_motor_collection().find_one_and_update(
+        result = await OrderCounter.get_pymongo_collection().find_one_and_update(
             {"_id": user_id},
             {"$inc": {"seq": 1}},
             upsert=True,

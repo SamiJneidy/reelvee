@@ -12,8 +12,8 @@ from .base import OrderBase
 
 class OrderResponse(OrderBase, BaseModelWithId, TimeMixin):
     reference_number: str | None = None
-    item: ItemMinimalResponse
-    customer: CustomerResponse
+    item: ItemMinimalResponse | None = None
+    customer: CustomerResponse | None = None
     item_price: float | None = None
     quantity: float | None = None
     total: float | None = None
