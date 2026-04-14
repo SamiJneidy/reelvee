@@ -1,6 +1,5 @@
-from datetime import date, datetime
+from datetime import date
 
-from beanie import PydanticObjectId
 from pydantic import BaseModel, computed_field
 
 from app.shared.schemas.common import PeriodInfo

@@ -2,7 +2,7 @@ from datetime import date
 
 from beanie import PydanticObjectId
 from fastapi import Query
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.core.enums import AnalyticsEventType
 
@@ -21,9 +21,9 @@ class AnalyticsEventCreate(BaseModel):
 
 
 class AnalyticsPeriodQuery(BaseModel):
-    days: int | None = Query(10, ge=1, le=365, description="Last N days (default 30)"),
-    from_date: date | None = Query(None, description="Start date (inclusive), e.g. 2026-01-01"),
-    to_date: date | None = Query(None, description="End date (inclusive), e.g. 2026-04-07"),
+    days: int | None = Field(10, ge=1, le=365, description="Last N days (default 10)"),
+    from_date: date | None = Field(None, description="Start date (inclusive), e.g. 2026-01-01")
+    to_date: date | None = Field(None, description="End date (inclusive), e.g. 2026-04-07")
 
     @model_validator(mode="after")
     def validate_dates(self) -> "AnalyticsPeriodQuery":

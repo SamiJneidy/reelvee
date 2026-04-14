@@ -12,14 +12,12 @@ from app.modules.analytics.models import (
     StoreDailyStat,
 )
 from app.modules.analytics.schemas.internal import (
+    BreakdownRow,
     OrderDailyTrendBucket,
     OrderDailyTrendByDate,
     StoreDailyViewTrendBucket,
     StoreDailyViewTrendByDate,
-)
-from app.modules.analytics.schemas.responses import (
-    BreakdownItem,
-    TopItem,
+    TopItemRow,
 )
 
 class AnalyticsRepository:
@@ -115,7 +113,7 @@ class AnalyticsRepository:
         store_id: PydanticObjectId,
         start: datetime,
         end: datetime,
-    ) -> list[BreakdownItem]:
+    ) -> list[BreakdownRow]:
         pipeline = [
             {"$match": {"store_id": store_id, "date": {"$gte": start, "$lte": end}}},
             {"$group": {"_id": "$country_code", "total": {"$sum": "$visits"}}},
@@ -125,7 +123,7 @@ class AnalyticsRepository:
         rows = await cursor.to_list(length=None)
         grand_total = sum(r["total"] for r in rows)
         return [
-            BreakdownItem(
+            BreakdownRow(
                 key=r["_id"],
                 count=r["total"],
                 percentage=round(r["total"] / grand_total * 100, 1) if grand_total else 0.0,
@@ -138,7 +136,7 @@ class AnalyticsRepository:
         store_id: PydanticObjectId,
         start: datetime,
         end: datetime,
-    ) -> list[BreakdownItem]:
+    ) -> list[BreakdownRow]:
         pipeline = [
             {"$match": {"store_id": store_id, "date": {"$gte": start, "$lte": end}}},
             {"$group": {"_id": "$os_type", "total": {"$sum": "$visits"}}},
@@ -148,7 +146,7 @@ class AnalyticsRepository:
         rows = await cursor.to_list(length=None)
         grand_total = sum(r["total"] for r in rows)
         return [
-            BreakdownItem(
+            BreakdownRow(
                 key=r["_id"],
                 count=r["total"],
                 percentage=round(r["total"] / grand_total * 100, 1) if grand_total else 0.0,
@@ -188,7 +186,7 @@ class AnalyticsRepository:
         start: datetime,
         end: datetime,
         limit: int = 10,
-    ) -> list[TopItem]:
+    ) -> list[TopItemRow]:
         pipeline = [
             {"$match": {"store_id": store_id, "date": {"$gte": start, "$lte": end}}},
             {"$group": {"_id": "$item_id", "views": {"$sum": "$views"}}},
@@ -205,7 +203,7 @@ class AnalyticsRepository:
         cursor = ItemDailyStat.get_pymongo_collection().aggregate(pipeline)
         rows = await cursor.to_list(length=None)
         return [
-            TopItem(
+            TopItemRow(
                 item_id=str(row["_id"]),
                 name=row.get("item", {}).get("name", "Unknown"),
                 views=row["views"],

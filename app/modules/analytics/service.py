@@ -12,11 +12,13 @@ from app.modules.analytics.schemas.internal import (
     StoreDailyViewTrendByDate,
 )
 from app.modules.analytics.schemas.responses import (
+    BreakdownItem,
     DailyTrendPoint,
     ItemAnalyticsResponse,
     ItemDailyTrendPoint,
     StoreAnalyticsOverview,
     StoreAnalyticsResponse,
+    TopItem,
 )
 from app.shared.ip.schemas import IPMetadata
 from app.shared.schemas.common import PeriodInfo
@@ -52,7 +54,7 @@ class AnalyticsService:
         elif payload.event_type == AnalyticsEventType.item_view:
             await self._repo.record_item_view(
                 store_id=store_id,
-                item_id=PydanticObjectId(payload.item_id),
+                item_id=payload.item_id,
                 date=today,
             )
 
@@ -91,10 +93,10 @@ class AnalyticsService:
                 total_cost=total_cost,
                 units_sold=units_sold,
             ),
-            countries=countries,
-            os_breakdown=os_breakdown,
+            countries=[BreakdownItem.model_validate(r) for r in countries],
+            os_breakdown=[BreakdownItem.model_validate(r) for r in os_breakdown],
             daily_trend=daily_trend,
-            top_items=top_items,
+            top_items=[TopItem.model_validate(r) for r in top_items],
         )
 
     # ------------------------------------------------------------------
