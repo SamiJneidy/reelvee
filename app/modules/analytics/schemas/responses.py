@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.shared.schemas.common import PeriodInfo
 
@@ -9,6 +9,7 @@ class BreakdownItem(BaseModel):
     key: str
     count: int
     percentage: float
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DailyTrendPoint(BaseModel):
@@ -17,12 +18,14 @@ class DailyTrendPoint(BaseModel):
     item_views: int = 0
     orders: int = 0
     revenue: float = 0.0
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TopItem(BaseModel):
     item_id: str
     name: str
     views: int
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StoreAnalyticsOverview(BaseModel):
@@ -33,6 +36,7 @@ class StoreAnalyticsOverview(BaseModel):
     revenue: float
     total_cost: float
     units_sold: int
+    model_config = ConfigDict(from_attributes=True)
 
     @computed_field
     @property
@@ -46,12 +50,14 @@ class StoreAnalyticsResponse(BaseModel):
     os_breakdown: list[BreakdownItem]
     daily_trend: list[DailyTrendPoint]
     top_items: list[TopItem]
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ItemDailyTrendPoint(BaseModel):
     date: date
     views: int = 0
     orders: int = 0
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ItemAnalyticsResponse(BaseModel):
@@ -64,3 +70,4 @@ class ItemAnalyticsResponse(BaseModel):
     units_sold: int
     conversion_rate: float          # orders / views * 100, 0 if no views
     daily_trend: list[ItemDailyTrendPoint]
+    model_config = ConfigDict(from_attributes=True)
