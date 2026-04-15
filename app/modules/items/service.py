@@ -172,7 +172,7 @@ class ItemService:
     ) -> ItemResponse:
 
         item = await self.get_own_by_id(current_user, id)
-        update_data = data.model_dump(exclude_unset=True, exclude={"images"})
+        update_data = data.model_dump(exclude_unset=True, exclude={"images", "thumbnail"})
         
         if "categories" in data.model_fields_set:
             await self._validate_categories(data.categories)
