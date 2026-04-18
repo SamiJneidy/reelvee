@@ -12,6 +12,7 @@ from app.modules.items.models import Item
 from app.modules.categories.models import Category
 from app.modules.customers.models import Customer
 from app.modules.orders.models import Order, OrderCounter
+from app.modules.invoices.models import Invoice, InvoiceCounter
 from app.modules.store.models import Store
 from app.modules.analytics.models import (
     StoreDailyStat,
@@ -40,6 +41,8 @@ async def init_db() -> None:
             Customer,
             Order,
             OrderCounter,
+            Invoice,
+            InvoiceCounter,
             Store,
             StoreDailyStat,
             StoreDailyCountry,
