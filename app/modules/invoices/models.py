@@ -36,6 +36,7 @@ class Invoice(BaseDocument):
     invoice_number: str | None = None   # set by the service on create
     order_number: str | None = None
     order_reference_number: str | None = None
+    customer_id: PydanticObjectId | None = None
     item_id: PydanticObjectId | None = None
     customer: InvoiceCustomer
     item: InvoiceItem | None = None
@@ -55,6 +56,7 @@ class Invoice(BaseDocument):
             ),
             IndexModel([("user_id", ASCENDING), ("order_number", ASCENDING)]),
             IndexModel([("user_id", ASCENDING), ("order_reference_number", ASCENDING)]),
+            IndexModel([("user_id", ASCENDING), ("customer_id", ASCENDING)]),
             IndexModel([("user_id", ASCENDING), ("item_id", ASCENDING)]),
             IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)]),
         ]
