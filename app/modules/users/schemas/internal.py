@@ -32,6 +32,7 @@ class UserUpdateInternal(BaseModel):
     business_name: str | None = None
     business_description: str | None = None
     plan: UserPlan | None = None
+    currency: str | None = None
     status: UserStatus | None = None
     step: UserStep | None = None
     is_email_verified: bool | None = None

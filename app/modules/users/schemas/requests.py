@@ -15,6 +15,7 @@ class UserCreate(BaseModel):
     whatsapp_number: str | None = None
     address: str | None = None
     plan: UserPlan | None = None
+    currency: str | None = None
     status: UserStatus = UserStatus.PENDING
     step: UserStep = UserStep.ONE
     is_email_verified: bool = False
@@ -30,6 +31,7 @@ class UserUpdate(BaseModel):
     country_code: str | None = None
     whatsapp_number: str | None = None
     address: str | None = None
+    currency: str | None = None
 
 
 class SignUpCompleteRequest(BaseModel):
@@ -40,6 +42,7 @@ class SignUpCompleteRequest(BaseModel):
     country_code: str
     whatsapp_number: str
     address: str | None = None
+    currency: str
 
     # Store fields (used to create the stores document)
     store_url: str

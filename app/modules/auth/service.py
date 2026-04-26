@@ -69,6 +69,7 @@ class AuthService:
         user_data = UserCreate(
             email=data.email,
             password=hash_password(data.password),
+            currency=None,
             status=UserStatus.PENDING,
             step=UserStep.ONE,
             is_email_verified=False,
@@ -76,7 +77,6 @@ class AuthService:
             is_deleted=False,
             last_login=None,
             invalid_login_attempts=0,
-            links=[],
         )
 
         user = await self._user_service.create_user(user_data, session)

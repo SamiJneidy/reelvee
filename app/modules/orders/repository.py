@@ -20,15 +20,14 @@ class OrderRepository:
         if filters.get("source") is not None:
             match_filter["source"] = filters["source"]
         if filters.get("customer_id") is not None:
-            match_filter["customer_id"] = filters["customer_id"]
+            match_filter["customer.id"] = filters["customer_id"]
         if filters.get("item_id") is not None:
-            match_filter["item_id"] = filters["item_id"]
+            match_filter["items.id"] = filters["item_id"]
         if filters.get("delivery_status") is not None:
             match_filter["delivery_status"] = filters["delivery_status"]
-        if filters.get("reference_number") is not None:
-            # "Like" search: contains match, safely escaped.
-            match_filter["reference_number"] = {
-                "$regex": re.escape(filters["reference_number"]),
+        if filters.get("order_number") is not None:
+            match_filter["order_number"] = {
+                "$regex": re.escape(filters["order_number"]),
                 "$options": "i",
             }
         return match_filter
@@ -45,36 +44,6 @@ class OrderRepository:
             session=session,
         )
 
-    async def get_by_id_with_relations(
-        self, user_id: PydanticObjectId, id: PydanticObjectId, session=None
-    ) -> Order | None:
-        pipeline = [
-            {"$match": {"user_id": user_id, "_id": id}},
-            {
-                "$lookup": {
-                    "from": "customers",
-                    "localField": "customer_id",
-                    "foreignField": "_id",
-                    "as": "customer",
-                }
-            },
-            {
-                "$lookup": {
-                    "from": "items",
-                    "localField": "item_id",
-                    "foreignField": "_id",
-                    "as": "item",
-                }
-            },
-            {"$unwind": {"path": "$item", "preserveNullAndEmptyArrays": True}},
-            {"$unwind": {"path": "$customer", "preserveNullAndEmptyArrays": True}},
-        ]
-        cursor = Order.get_pymongo_collection().aggregate(pipeline, session=session)
-        raw = await cursor.to_list(length=1)
-        if not raw:
-            return None
-        return self._deserialize_order(raw[0])
-
     async def get_list(
         self,
         user_id: PydanticObjectId,
@@ -88,36 +57,7 @@ class OrderRepository:
         total = await Order.get_pymongo_collection().count_documents(
             match_filter, session=session
         )
-
-        # Paginate first, then join — $lookup only runs on the page (e.g. 10
-        # docs) instead of all matching orders.
-        pipeline = [
-            {"$match": match_filter},
-            {"$sort": {"created_at": -1}},
-            {"$skip": skip},
-            {"$limit": limit},
-            {"$lookup": {
-                "from": "customers",
-                "localField": "customer_id",
-                "foreignField": "_id",
-                "as": "customer",
-            }},
-            {"$lookup": {
-                "from": "items",
-                "localField": "item_id",
-                "foreignField": "_id",
-                "as": "item",
-            }},
-            {"$unwind": {"path": "$item", "preserveNullAndEmptyArrays": True}},
-            {"$unwind": {"path": "$customer", "preserveNullAndEmptyArrays": True}},
-        ]
-        # Beanie's aggregate() wrapper tries to await Motor's aggregate cursor,
-        # which is not a coroutine in Motor 3.x. Use Motor directly instead:
-        # collection.aggregate() returns a cursor synchronously, and its
-        # .to_list() is the awaitable part.
-        cursor = Order.get_pymongo_collection().aggregate(pipeline, session=session)
-        raw_orders = await cursor.to_list(length=None)
-        orders = [self._deserialize_order(raw) for raw in raw_orders]
+        orders = await Order.find(match_filter, session=session).sort(-Order.created_at).skip(skip).limit(limit).to_list()
         return total, orders
 
     async def count_unread(self, user_id: PydanticObjectId, session=None) -> int:
@@ -127,7 +67,7 @@ class OrderRepository:
             session=session,
         ).count()
 
-    async def next_reference_number(
+    async def next_order_number(
         self, user_id: PydanticObjectId, session=None
     ) -> int:
         """Return the next reference number for a store's orders.
@@ -149,7 +89,7 @@ class OrderRepository:
     async def create(self, data: dict[str, Any], session=None) -> Order:
         order = Order(**data)
         await order.insert(session=session)
-        return await self.get_by_id_with_relations(order.user_id, order.id, session=session)
+        return order
 
     async def update_by_id(
         self,
@@ -169,7 +109,7 @@ class OrderRepository:
             if hasattr(Order, key):
                 setattr(order, key, value)
         await order.save(session=session)
-        return await self.get_by_id_with_relations(order.user_id, order.id, session=session)
+        return order
 
     async def delete_by_id(
         self, user_id: PydanticObjectId, id: PydanticObjectId, session=None

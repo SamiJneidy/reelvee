@@ -1,33 +1,43 @@
-from pydantic import ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, computed_field
 
-from app.core.enums import DeliveryStatus, RecordSource, OrderStatus
-from app.modules.items.schemas.responses import ItemMinimalResponse
+from app.core.enums import DeliveryStatus, ItemType, OrderStatus, RecordSource
 from app.modules.orders.models import PaymentDetails
-from app.modules.customers.schemas.responses import CustomerResponse
+from app.modules.orders.schemas.base import OrderBase
+from app.modules.storage.schemas import FileResponse
 from app.shared.schemas.base import BaseModelWithId
 from app.shared.schemas.mixins import TimeMixin
+from beanie import PydanticObjectId
 
-from .base import OrderBase
+
+class OrderCustomerResponse(BaseModel):
+    id: PydanticObjectId
+    name: str
+    email: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderItemResponse(BaseModel):
+    id: PydanticObjectId
+    name: str
+    price: float
+    quantity: int
+    subtotal: float
+    type: ItemType
+    thumbnail: FileResponse | None = None
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderResponse(OrderBase, BaseModelWithId, TimeMixin):
-    reference_number: str | None = None
-    item: ItemMinimalResponse | None = None
-    customer: CustomerResponse | None = None
-    item_price: float | None = None
-    quantity: float | None = None
-    total: float | None = None
-    total_cost: float | None = None
-    payment: PaymentDetails | None = None
-    customer_message: str | None = None
-    address: str | None = None
-    delivery_status: DeliveryStatus | None = None
-    notes: str | None = None
+    order_number: str | None = None
+    customer: OrderCustomerResponse
+    items: list[OrderItemResponse]
     is_read: bool
     source: RecordSource
     status: OrderStatus
     model_config = ConfigDict(from_attributes=True)
-    
+
     @computed_field
     @property
     def profit(self) -> float | None:

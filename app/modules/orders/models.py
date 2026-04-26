@@ -1,20 +1,19 @@
 from datetime import datetime
 
-from beanie import Document, PydanticObjectId, Link
+from beanie import Document, PydanticObjectId
 from pydantic import BaseModel
 from pymongo import ASCENDING, DESCENDING, IndexModel
 
 from app.core.enums import (
     DeliveryStatus,
+    ItemType,
     OrderStatus,
     PaymentMethod,
     PaymentStatus,
     RecordSource,
 )
-from app.modules.customers.models import Customer
-from app.modules.items.models import Item
+from app.modules.storage.models import File
 from app.shared.models.base import BaseDocument
-
 
 class OrderCounter(Document):
     """Per-store sequential counter for order reference numbers.
@@ -31,6 +30,24 @@ class OrderCounter(Document):
         name = "order_counters"
 
 
+class OrderCustomer(BaseModel):
+    id: PydanticObjectId
+    name: str
+    email: str | None = None
+    phone: str | None = None
+    address: str | None = None
+
+
+class OrderItem(BaseModel):
+    id: PydanticObjectId
+    name: str
+    price: float
+    quantity: int = 1
+    subtotal: float
+    type: ItemType
+    thumbnail: File | None = None
+
+
 class PaymentDetails(BaseModel):
     status: PaymentStatus
     method: PaymentMethod | None = None
@@ -43,14 +60,10 @@ class PaymentDetails(BaseModel):
 class Order(BaseDocument):
     # Relationships
     user_id: PydanticObjectId
-    customer_id: PydanticObjectId | None = None
-    item_id: PydanticObjectId
-    customer: Link[Customer] | None = None
-    item: Link[Item] | None = None
+    customer: OrderCustomer
 
     # Pricing
-    item_price: float | None = None     # listed price at order time, for reference
-    quantity: int | None = None
+    items: list[OrderItem] = []
     total: float | None = None          # actual revenue agreed with customer
     total_cost: float | None = None     # expense for this order
 
@@ -63,7 +76,7 @@ class Order(BaseDocument):
     is_read: bool = False
 
     # Reference
-    reference_number: str | None = None  # per-store sequential number, set by the service on create
+    order_number: str | None = None  # per-store sequential number, set by the service on create
 
     # Details
     customer_message: str | None = None
@@ -76,11 +89,12 @@ class Order(BaseDocument):
         indexes = [
             IndexModel([("user_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)]),
             IndexModel([("user_id", ASCENDING), ("is_read", ASCENDING)]),
-            IndexModel([("customer_id", ASCENDING), ("created_at", DESCENDING)]),
-            IndexModel([("user_id", ASCENDING), ("item_id", ASCENDING)]),
+            IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)]),
+            IndexModel([("customer.id", ASCENDING), ("created_at", DESCENDING)]),
+            IndexModel([("items.id", ASCENDING)]),
             IndexModel(
-                [("user_id", ASCENDING), ("reference_number", ASCENDING)],
+                [("user_id", ASCENDING), ("order_number", ASCENDING)],
                 unique=True,
-                partialFilterExpression={"reference_number": {"$type": "string"}},
+                partialFilterExpression={"order_number": {"$type": "string"}},
             ),
         ]

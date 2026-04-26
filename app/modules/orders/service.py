@@ -1,3 +1,4 @@
+from typing import Any
 from beanie import PydanticObjectId
 
 from app.core.context import SessionContext
@@ -12,6 +13,7 @@ from app.modules.orders.schemas import (
     OrderInternal,
     OrderUpdate,
 )
+from app.modules.orders.schemas.requests import OrderItemInput, OrderItemInputPublic
 from app.modules.orders.schemas.responses import OrderResponse
 from app.modules.items.service import ItemService
 from app.modules.items.exceptions import ItemNotFoundException
@@ -34,6 +36,30 @@ class OrderService:
     def _to_internal(self, order) -> OrderInternal:
         return OrderInternal.model_validate(order)
 
+    async def _resolve_items(
+        self, 
+        user_id: PydanticObjectId, 
+        item_inputs: list[OrderItemInput | OrderItemInputPublic], 
+        visible_only: bool = True,
+    ) -> list[dict[str, Any]]:
+        resolved = []
+        for item_input in item_inputs:
+            db_item = await self._item_service.get_by_id(user_id, item_input.id)
+            if visible_only and not db_item.is_visible:
+                raise ItemNotFoundException()
+            price = item_input.price if isinstance(item_input, OrderItemInput) else db_item.price
+            subtotal = item_input.quantity * price
+            resolved.append({
+                "id": db_item.id,
+                "name": db_item.name,
+                "quantity": item_input.quantity,
+                "price": round(price, 2),
+                "subtotal": round(subtotal, 2),
+                "type": db_item.type,
+                "thumbnail": db_item.thumbnail.model_dump() if db_item.thumbnail else None,
+            })
+        return resolved
+
     # -----------------------------------------------------------------
     # Owner-scoped
     # -----------------------------------------------------------------
@@ -41,7 +67,7 @@ class OrderService:
     async def get_own_by_id(
         self, current_user: SessionContext, id: PydanticObjectId
     ) -> OrderResponse:
-        order = await self._repo.get_by_id_with_relations(current_user.user.id, id)
+        order = await self._repo.get_by_id(current_user.user.id, id)
         if not order:
             raise OrderNotFoundException()
         return self._to_response(order)
@@ -68,19 +94,21 @@ class OrderService:
     async def create(
         self, current_user: SessionContext, payload: OrderCreate, session=None
     ) -> OrderResponse:
-        data = payload.model_dump()
+        
+        data = payload.model_dump(exclude={"items", "customer_id"})
+        
+        items = await self._resolve_items(current_user.user.id, payload.items, visible_only=False)
+        customer = await self._customer_service.get_own_by_id(current_user, payload.customer_id)
+        order_number = await self._repo.next_order_number(current_user.user.id, session=session)
+        
+        data["items"] = items
+        data["customer"] = customer.model_dump()
         data["user_id"] = current_user.user.id
         data["source"] = RecordSource.INTERNAL
-        data["is_read"] = True  # owner created it, so it's already seen
-        seq = await self._repo.next_reference_number(current_user.user.id, session=session)
-        data["reference_number"] = f"{seq:06d}"
+        data["is_read"] = True
+        data["order_number"] = f"{order_number:06d}"
         order = await self._repo.create(data, session=session)
-        full = await self._repo.get_by_id_with_relations(
-            current_user.user.id, order.id, session=session
-        )
-        if full is None:
-            raise OrderNotFoundException()
-        return self._to_response(full)
+        return self._to_response(order)
 
     async def update_own_by_id(
         self,
@@ -92,12 +120,14 @@ class OrderService:
         order = await self._repo.get_by_id(current_user.user.id, id)
         if not order:
             raise OrderNotFoundException()
-        update_data = payload.model_dump(exclude_none=True)
-        updated = await self._repo.update_by_id(
-            current_user.user.id, id, update_data, session=session
-        )
-        if updated is None:
-            raise OrderNotFoundException()
+
+        update_data = payload.model_dump(exclude_unset=True, exclude={"items"})
+        if payload.items is not None:
+            items = await self._resolve_items(current_user.user.id, payload.items, visible_only=False)
+            update_data["items"] = items
+        # No need to handle customer update, it's not allowed
+
+        updated = await self._repo.update_by_id(current_user.user.id, id, update_data, session=session)
         return self._to_response(updated)
 
     async def delete_own_by_id(
@@ -118,10 +148,11 @@ class OrderService:
         payload: OrderCreatePublic,
         session=None,
     ) -> None:
-        item = await self._item_service.get_by_id(user_id, payload.item_id)
-        if not item.is_visible:
-            raise ItemNotFoundException()
 
+        data = payload.model_dump(exclude={"items", "customer"})
+        
+        items = await self._resolve_items(user_id, payload.items, visible_only=True)
+        
         customer = await self._customer_service.get_by_phone(user_id, payload.customer.phone)
         if not customer:
             customer = await self._customer_service.create_public_customer(
@@ -129,12 +160,13 @@ class OrderService:
                 payload.customer, 
                 session=session
             )
-        data = payload.model_dump(exclude={"customer"})
+
+        data["items"] = items
         data["user_id"] = user_id
-        data["customer_id"] = customer.id
+        data["customer"] = customer.model_dump()
         data["source"] = RecordSource.WEB
         data["status"] = OrderStatus.NEW
         data["is_read"] = False
-        seq = await self._repo.next_reference_number(user_id, session=session)
-        data["reference_number"] = f"{seq:06d}"
+        order_number = await self._repo.next_order_number(user_id, session=session)
+        data["order_number"] = f"{order_number:06d}"
         await self._repo.create(data, session=session)

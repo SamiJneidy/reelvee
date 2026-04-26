@@ -13,3 +13,4 @@ class UserBase(BaseModel):
     plan: UserPlan | None = None
     business_name: str | None = None
     business_description: str | None = None
+    currency: str | None = None

@@ -21,7 +21,7 @@ class AnalyticsEventCreate(BaseModel):
 
 
 class AnalyticsPeriodQuery(BaseModel):
-    days: int | None = Field(10, ge=1, le=365, description="Last N days (default 10)"),
+    days: int | None = Field(None, ge=1, le=365, description="Last N days (default 30)"),
     from_date: date | None = Field(None, description="Start date (inclusive), e.g. 2026-01-01")
     to_date: date | None = Field(None, description="End date (inclusive), e.g. 2026-04-07")
 
@@ -29,4 +29,6 @@ class AnalyticsPeriodQuery(BaseModel):
     def validate_dates(self) -> "AnalyticsPeriodQuery":
         if (self.from_date is None) != (self.to_date is None):
             raise ValueError("Both from_date and to_date must be provided together")
+        if self.from_date is None and self.to_date is None and self.days is None:
+            self.days = 30
         return self

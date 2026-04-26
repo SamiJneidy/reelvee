@@ -1,41 +1,42 @@
 from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
 
-from app.core.enums import DeliveryStatus, OrderStatus
-from app.modules.orders.models import PaymentDetails
+from app.core.enums import OrderStatus
 from app.modules.customers.schemas.requests import CustomerCreatePublic
+from app.modules.orders.schemas.base import OrderBase
 
 
-class OrderCreate(BaseModel):
+class OrderItemInput(BaseModel):
+    """A line item in a create or update request — ID + quantity only.
+    The service resolves the item and builds the snapshot."""
+    id: PydanticObjectId
+    quantity: int = Field(1, ge=1)
+    price: float = Field(..., ge=0)
+
+class OrderItemInputPublic(BaseModel):
+    """A line item in a create or update request — ID + quantity only.
+    The service resolves the item and builds the snapshot."""
+    id: PydanticObjectId
+    quantity: int = Field(1, ge=1)
+
+class OrderCreate(OrderBase):
     customer_id: PydanticObjectId
-    item_id: PydanticObjectId
+    items: list[OrderItemInput] = Field(min_length=1)
     status: OrderStatus
-    item_price: float | None = Field(None, ge=0)
-    quantity: float | None = Field(None, ge=1)
     total: float | None = Field(None, ge=0)
     total_cost: float | None = Field(None, ge=0)
-    customer_message: str | None = None
-    address: str | None = None
-    notes: str | None = None
-    payment: PaymentDetails | None = None
-    delivery_status: DeliveryStatus | None = None
+
 
 class OrderCreatePublic(BaseModel):
+    """Used by the public storefront — customer data provided directly, not looked up."""
     customer: CustomerCreatePublic
-    item_id: PydanticObjectId
-    quantity: float | None = Field(None, ge=1)
+    items: list[OrderItemInputPublic] = Field(min_length=1)
     customer_message: str | None = None
 
-class OrderUpdate(BaseModel):
-    item_id: PydanticObjectId | None = None
-    item_price: float | None = Field(None, ge=0)
-    quantity: float | None = Field(None, ge=1)
+
+class OrderUpdate(OrderBase):
+    items: list[OrderItemInputPublic] | None = None
     total: float | None = Field(None, ge=0)
     total_cost: float | None = Field(None, ge=0)
-    payment: PaymentDetails | None = None
     status: OrderStatus | None = None
     is_read: bool | None = None
-    customer_message: str | None = None
-    address: str | None = None
-    delivery_status: DeliveryStatus | None = None
-    notes: str | None = None
