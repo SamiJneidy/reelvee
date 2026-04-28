@@ -16,7 +16,6 @@ class User(BaseDocument):
     country_code: str | None = None
     whatsapp_number: str | None = Indexed(str, unique=True)
     address: str | None = None
-    currency: str | None = None
     plan: UserPlan | None = None
 
     # Security

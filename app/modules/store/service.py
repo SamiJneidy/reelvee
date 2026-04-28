@@ -62,6 +62,12 @@ class StoreService:
             raise StoreNotFoundException()
         return StoreResponse.model_validate(store)
 
+    async def get_public_info(self, store_url: str) -> StoreResponse:
+        store = await self._repo.get_by_store_url(store_url)
+        if not store:
+            raise StoreNotFoundException()
+        return StoreResponse.model_validate(store)
+
     # ------------------------------------------------------------------
     # Validation
     # ------------------------------------------------------------------
@@ -92,6 +98,7 @@ class StoreService:
         self,
         user_id: PydanticObjectId,
         store_url: str,
+        currency: str | None = None,
         profile_title: str = "",
         profile_bio: str = "",
         links: list | None = None,
@@ -106,7 +113,7 @@ class StoreService:
 
         qr_code = await self._generate_qr_code(self._get_full_store_url(store_url), session=session)
 
-        store_base = StoreBase(store_url=store_url, links=links or [])
+        store_base = StoreBase(store_url=store_url, currency=currency, links=links or [])
         data = store_base.model_dump()
         data.update({"user_id": user_id, "qr_code": qr_code})
 

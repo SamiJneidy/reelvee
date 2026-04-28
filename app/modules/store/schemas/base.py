@@ -24,8 +24,8 @@ class ThemeConfigBase(BaseModel):
 
 
 class ProfileConfigBase(BaseModel):
-    title: str = ""
-    bio: str = ""
+    title: str = "My Store"
+    bio: str = "Welcome to my store!"
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -42,6 +42,7 @@ class PageConfigBase(BaseModel):
 
 class StoreBase(BaseModel):
     store_url: str | None = None
+    currency: str | None = None
     logo: FileResponse | None = None
     links: list[Link] = Field(default_factory=list)
     template_id: TemplateId = TemplateId.TEMPLATE_A

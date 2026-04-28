@@ -41,6 +41,7 @@ class PageConfig(BaseModel):
 class Store(BaseDocument):
     user_id: PydanticObjectId
     store_url: Indexed(str, unique=True)
+    currency: str | None = None
     logo: File | None
     qr_code: FileResponse | None
     links: list[Link]

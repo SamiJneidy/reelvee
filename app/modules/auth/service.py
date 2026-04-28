@@ -69,7 +69,6 @@ class AuthService:
         user_data = UserCreate(
             email=data.email,
             password=hash_password(data.password),
-            currency=None,
             status=UserStatus.PENDING,
             step=UserStep.ONE,
             is_email_verified=False,

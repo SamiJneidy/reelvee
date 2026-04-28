@@ -78,12 +78,6 @@ class UserService:
             raise UserNotFoundException()
         return UserInternal.model_validate(user)
 
-    async def get_by_store_url(self, store_url: str) -> UserInternal:
-        user = await self._repo.get_by_store_url(store_url)
-        if not user:
-            raise UserNotFoundException()
-        return UserInternal.model_validate(user)
-
     async def get_users(
         self,
         skip: int = 0,
@@ -119,7 +113,6 @@ class UserService:
             address=data.address,
             business_name=data.business_name,
             business_description=data.business_description,
-            currency=data.currency,
             status=UserStatus.ACTIVE,
             step=UserStep.TWO,
             is_completed=True,
@@ -138,6 +131,7 @@ class UserService:
         await self._store_service.create_for_user(
             user_id=user.id,
             store_url=data.store_url,
+            currency=data.currency,
             profile_title="My Store",
             profile_bio="Welcome to my store!",
             links=data.links,

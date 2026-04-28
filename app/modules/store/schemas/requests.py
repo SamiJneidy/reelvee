@@ -33,6 +33,7 @@ class PageConfigRequest(BaseModel):
     
 
 class StoreUpdate(BaseModel):
+    # currency: str | None = Field(...) TODO: add currency update
     logo: FileInput | None = Field(...)
     links: list[Link] = Field(...)
     template_id: TemplateId = Field(..., examples=[TemplateId.TEMPLATE_A])
