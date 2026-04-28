@@ -227,20 +227,41 @@ class AnalyticsRepository:
             "user_id": user_id,
             "created_at": {"$gte": start, "$lte": end},
         }
-        if item_id:
-            match["item_id"] = item_id
 
-        pipeline = [
-            {"$match": match},
-            {"$group": {
-                "_id": None,
-                "total_orders": {"$sum": 1},
-                "revenue": {"$sum": {"$ifNull": ["$total", 0]}},
-                "total_cost": {"$sum": {"$ifNull": ["$total_cost", 0]}},
-                "units_sold": {"$sum": {"$ifNull": ["$quantity", 0]}},
-            }},
-        ]
-        
+        if item_id:
+            # Filter to orders that contain this item, then unwind to isolate
+            # the matching line so we can sum only that item's quantity.
+            # Each item appears at most once per order, so order-level fields
+            # (total, total_cost) are still counted exactly once per order.
+            match["items.id"] = item_id
+            pipeline = [
+                {"$match": match},
+                {"$unwind": "$items"},
+                {"$match": {"items.id": item_id}},
+                {"$group": {
+                    "_id": None,
+                    "total_orders": {"$sum": 1},
+                    "revenue": {"$sum": {"$ifNull": ["$total", 0]}},
+                    "total_cost": {"$sum": {"$ifNull": ["$total_cost", 0]}},
+                    "units_sold": {"$sum": "$items.quantity"},
+                }},
+            ]
+        else:
+            pipeline = [
+                {"$match": match},
+                {"$group": {
+                    "_id": None,
+                    "total_orders": {"$sum": 1},
+                    "revenue": {"$sum": {"$ifNull": ["$total", 0]}},
+                    "total_cost": {"$sum": {"$ifNull": ["$total_cost", 0]}},
+                    "units_sold": {"$sum": {"$reduce": {
+                        "input": "$items",
+                        "initialValue": 0,
+                        "in": {"$add": ["$$value", "$$this.quantity"]},
+                    }}},
+                }},
+            ]
+
         cursor = Order.get_pymongo_collection().aggregate(pipeline)
         result = await cursor.to_list(length=1)
         row = result[0] if result else {}
@@ -264,7 +285,7 @@ class AnalyticsRepository:
             "created_at": {"$gte": start, "$lte": end},
         }
         if item_id:
-            match["item_id"] = item_id
+            match["items.id"] = item_id
 
         pipeline = [
             {"$match": match},
