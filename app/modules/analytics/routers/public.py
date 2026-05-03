@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 
 from app.core.enums import AnalyticsEventType
 from app.modules.analytics.dependencies import AnalyticsService, get_analytics_service
@@ -42,3 +42,12 @@ async def track_event(
     
     background_tasks.add_task(analytics_service.record_event, store.id, body, client)
     return SuccessResponse(detail="Event received")
+
+
+@router.get("/debug-ip")
+async def debug_ip(request: Request, client: IPMetadata = Depends(get_ip_metadata)):
+    return {
+        "client_ip": request.client.host,
+        "headers": dict(request.headers),
+        "client": client,
+    }
