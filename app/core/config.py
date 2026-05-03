@@ -1,5 +1,11 @@
+import os
 from fastapi_mail import ConnectionConfig
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Absolute path to the project root (the directory that contains the `app` package).
+# Using __file__ keeps this correct regardless of the process working directory,
+# which matters on platforms like Vercel where the CWD is not the project root.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class Settings(BaseSettings):
     mongodb_uri: str
