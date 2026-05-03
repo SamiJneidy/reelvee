@@ -180,3 +180,22 @@ class OSType(str, Enum):
 class AnalyticsEventType(str, Enum):
     store_view = "store_view"
     item_view  = "item_view"
+
+
+class ExpenseCategory(str, Enum):
+    RENT = "rent"
+    UTILITIES = "utilities"
+    SUPPLIES = "supplies"
+    SALARIES = "salaries"
+    MARKETING = "marketing"
+    SHIPPING = "shipping"
+    MAINTENANCE = "maintenance"
+    TAXES = "taxes"
+    OTHER = "other"
+
+
+class ExpensePaymentMethod(str, Enum):
+    CASH = "cash"
+    CARD = "card"
+    BANK_TRANSFER = "bank_transfer"
+    OTHER = "other"

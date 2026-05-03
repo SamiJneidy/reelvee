@@ -18,6 +18,7 @@ from app.modules.analytics.routers import (
     private_router as analytics_private_router,
 )
 from app.modules.invoices.router import router as invoices_router
+from app.modules.expenses.router import router as expenses_router
 
 router = APIRouter(
     prefix="/v1",
@@ -39,3 +40,4 @@ router.include_router(customers_router)
 router.include_router(orders_private_router)
 router.include_router(orders_public_router)
 router.include_router(invoices_router, deprecated=True)
+router.include_router(expenses_router)
