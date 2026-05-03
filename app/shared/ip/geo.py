@@ -15,16 +15,13 @@ def _resolve_db_path(db_path: str | None) -> str | None:
 
 @lru_cache
 def _get_geoip_reader():
-    db_path = _resolve_db_path(settings.geoip_db_path)
+    # db_path = _resolve_db_path(settings.geoip_db_path)
+    db_path = settings.geoip_db_path
     if db_path and os.path.exists(db_path):
         try:
-            print("Loading GeoIP reader from {db_path}")
             return GeoIPReader(db_path)
         except Exception:
-            print("Error loading GeoIP reader from {db_path}")
             return None
-    print("Error loading GeoIP reader from {db_path}")
-    raise Exception(f"Error loading GeoIP reader from {db_path}")
     return None
 
 
