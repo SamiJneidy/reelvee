@@ -1,5 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
+from app.core.enums import AnalyticsEventType
 from app.modules.analytics.dependencies import AnalyticsService, get_analytics_service
 from app.modules.analytics.schemas import AnalyticsEventCreate
 from app.modules.store.dependencies import StoreService,get_store_service
@@ -35,8 +36,9 @@ async def track_event(
 ) -> SuccessResponse:
     store = await store_service.get_by_store_url(body.store_url)
 
-    # check if item belongs to user
-    item = await item_service.get_by_id(store.user_id, body.item_id)
+    if body.event_type == AnalyticsEventType.item_view:
+        # check if item belongs to user
+        item = await item_service.get_by_id(store.user_id, body.item_id)
     
     background_tasks.add_task(analytics_service.record_event, store.id, body, client)
     return SuccessResponse(detail="Event received")
