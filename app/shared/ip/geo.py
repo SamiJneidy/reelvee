@@ -1,24 +1,18 @@
 import os
-
+from functools import lru_cache
 from app.core.config import settings
 from geoip2.database import Reader as GeoIPReader
 
-_geoip_reader = None
-_geoip_initialized = False
 
-
+@lru_cache
 def _get_geoip_reader():
-    global _geoip_reader, _geoip_initialized
-    if _geoip_initialized:
-        return _geoip_reader
-    _geoip_initialized = True
     db_path = settings.geoip_db_path
     if db_path and os.path.exists(db_path):
         try:
-            _geoip_reader = GeoIPReader(db_path)
+            return GeoIPReader(db_path)
         except Exception:
-            _geoip_reader = None
-    return _geoip_reader
+            return None
+    return None
 
 
 def resolve_country_iso_from_ip(ip: str) -> str:

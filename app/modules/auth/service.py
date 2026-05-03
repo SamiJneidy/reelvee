@@ -81,6 +81,7 @@ class AuthService:
         user = await self._user_service.create_user(user_data, session)
         otp_req = SendEmailVerificationOTPRequest(email=data.email)
         await self._otp_service.create_email_verification_otp(otp_req, session)
+        await self._email_service.send_welcome_email(data.email)
         return UserResponse.model_validate(user)
 
     async def login(self, credentials: LoginRequest, session=None) -> UserResponse:

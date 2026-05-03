@@ -137,7 +137,9 @@ class UserService:
             links=data.links,
             session=session,
         )
-
+        await self._email_service.send_onboarding_email(
+            email, first_name=data.first_name, store_url=data.store_url
+        )
         updated_user = await self._repo.get_by_email(email, session)
         return UserResponse.model_validate(updated_user)
 

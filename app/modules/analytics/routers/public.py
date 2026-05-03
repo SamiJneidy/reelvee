@@ -34,7 +34,6 @@ async def track_event(
     item_service: ItemService = Depends(get_item_service),
 ) -> SuccessResponse:
     store = await store_service.get_by_store_url(body.store_url)
-    user_id = store.user_id
 
     # check if item belongs to user
     item = await item_service.get_by_id(store.user_id, body.item_id)
