@@ -18,9 +18,12 @@ def _get_geoip_reader():
     db_path = _resolve_db_path(settings.geoip_db_path)
     if db_path and os.path.exists(db_path):
         try:
+            print("Loading GeoIP reader from {db_path}")
             return GeoIPReader(db_path)
         except Exception:
+            print("Error loading GeoIP reader from {db_path}")
             return None
+    print("Error loading GeoIP reader from {db_path}")
     return None
 
 
@@ -36,3 +39,8 @@ def resolve_country_iso_from_ip(ip: str) -> str:
         return response.country.iso_code or "unknown"
     except Exception:
         return "unknown"
+
+print("Country code:")
+print(resolve_country_iso_from_ip("5.0.52.244"))
+print("Project root:")
+print(PROJECT_ROOT)
