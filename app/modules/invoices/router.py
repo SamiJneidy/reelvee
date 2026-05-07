@@ -15,11 +15,11 @@ from app.modules.invoices.schemas import (
 )
 from app.shared.schemas import SingleResponse
 from app.shared.schemas.pagination import PaginatedResponse, Pagination
-from app.shared.schemas.responses import SuccessResponse
 
 router = APIRouter(
     prefix="/invoices",
     tags=["Invoices"],
+    dependencies=[Depends(get_current_session)],
 )
 
 
@@ -52,6 +52,24 @@ async def list_invoices(
         page=pagination.page,
         limit=pagination.limit,
     )
+
+
+@router.post(
+    "/from-order/{order_id}",
+    response_model=SingleResponse[InvoiceResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary=InvoiceDocs.CreateInvoiceFromOrder.summary,
+    description=InvoiceDocs.CreateInvoiceFromOrder.description,
+    responses=InvoiceDocs.CreateInvoiceFromOrder.responses,
+)
+async def create_invoice_from_order(
+    order_id: PydanticObjectId,
+    current_user: SessionContext = Depends(get_current_session),
+    invoice_service: InvoiceService = Depends(get_invoice_service),
+    session=Depends(get_session),
+) -> SingleResponse[InvoiceResponse]:
+    invoice = await invoice_service.create_from_order(current_user, order_id, session)
+    return SingleResponse[InvoiceResponse](data=invoice)
 
 
 @router.get(

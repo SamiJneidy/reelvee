@@ -1,11 +1,13 @@
 from beanie import PydanticObjectId
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
+from app.core.enums import ItemType
 from app.shared.schemas.base import BaseModelWithId
 from app.shared.schemas.mixins import TimeMixin
 
 
 class InvoiceCustomerResponse(BaseModel):
+    id: PydanticObjectId
     name: str
     email: str | None = None
     phone: str | None = None
@@ -14,20 +16,23 @@ class InvoiceCustomerResponse(BaseModel):
 
 
 class InvoiceItemResponse(BaseModel):
+    id: PydanticObjectId
     name: str
+    price: float
     quantity: int
+    subtotal: float
+    type: ItemType
     model_config = ConfigDict(from_attributes=True)
 
 
 class InvoiceResponse(BaseModelWithId, TimeMixin):
-    invoice_number: str | None = None
+    invoice_number: str
+    order_id: PydanticObjectId | None = None
     order_number: str | None = None
-    order_reference_number: str | None = None
     customer: InvoiceCustomerResponse
-    item: InvoiceItemResponse | None = None
-    currency: str
-    subtotal: float = Field(ge=0)
-    discount: float = Field(0.0, ge=0)
-    shipping_costs: float = Field(0.0, ge=0)
-    total: float = Field(ge=0)
+    items: list[InvoiceItemResponse]
+    subtotal: float
+    discount: float
+    total: float
+    notes: str | None = None
     model_config = ConfigDict(from_attributes=True)

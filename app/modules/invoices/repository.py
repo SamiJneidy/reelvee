@@ -13,10 +13,13 @@ class InvoiceRepository:
     ) -> dict[str, Any]:
         filters = filters or {}
         match_filter: dict[str, Any] = {"user_id": user_id}
-        for field in ("currency",):
-            if filters.get(field) is not None:
-                match_filter[field] = filters[field]
-        for field in ("invoice_number", "order_number", "order_reference_number"):
+        if filters.get("order_id") is not None:
+            match_filter["order_id"] = filters["order_id"]
+        if filters.get("customer_id") is not None:
+            match_filter["customer.id"] = filters["customer_id"]
+        if filters.get("item_id") is not None:
+            match_filter["items.id"] = filters["item_id"]
+        for field in ("invoice_number", "order_number"):
             if filters.get(field) is not None:
                 match_filter[field] = {
                     "$regex": re.escape(filters[field]),
@@ -36,6 +39,18 @@ class InvoiceRepository:
             session=session,
         )
 
+    async def get_by_order_id(
+        self,
+        user_id: PydanticObjectId,
+        order_id: PydanticObjectId,
+        session=None,
+    ) -> Invoice | None:
+        return await Invoice.find_one(
+            Invoice.user_id == user_id,
+            Invoice.order_id == order_id,
+            session=session,
+        )
+
     async def get_list(
         self,
         user_id: PydanticObjectId,
@@ -45,18 +60,12 @@ class InvoiceRepository:
         session=None,
     ) -> tuple[int, list[Invoice]]:
         match_filter = self._build_match_filter(user_id=user_id, filters=filters)
+        # Count on the raw collection — no join needed, hits the index directly.
         total = await Invoice.get_pymongo_collection().count_documents(
             match_filter, session=session
         )
-        pipeline = [
-            {"$match": match_filter},
-            {"$sort": {"created_at": -1}},
-            {"$skip": skip},
-            {"$limit": limit},
-        ]
-        cursor = Invoice.get_pymongo_collection().aggregate(pipeline, session=session)
-        raw_list = await cursor.to_list(length=None)
-        return total, [self._deserialize(raw) for raw in raw_list]
+        invoices = await Invoice.find(match_filter, session=session).sort(-Invoice.created_at).skip(skip).limit(limit).to_list()
+        return total, invoices
 
     async def next_invoice_number(
         self, user_id: PydanticObjectId, session=None

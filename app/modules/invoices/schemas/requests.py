@@ -1,15 +1,20 @@
 from beanie import PydanticObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
+class InvoiceItemInput(BaseModel):
+    id: PydanticObjectId
+    quantity: int = Field(1, ge=0)
+    price: float = Field(..., ge=0)
+    
+    model_config = ConfigDict(from_attributes=True)
 
 class InvoiceCreate(BaseModel):
-    order_number: str | None = None
-    order_reference_number: str | None = None
+    order_id: PydanticObjectId | None = None
     customer_id: PydanticObjectId
-    item_id: PydanticObjectId
-    quantity: int = Field(1, ge=1)
-    currency: str
-    subtotal: float = Field(ge=0)
-    discount: float = Field(0.0, ge=0)
-    shipping_costs: float = Field(0.0, ge=0)
-    total: float = Field(ge=0)
+    items: list[InvoiceItemInput] = Field(min_length=1)
+    subtotal: float
+    discount: float = 0
+    total: float
+    notes: str | None = None
+
+

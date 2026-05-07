@@ -2,6 +2,7 @@ from beanie import Document, PydanticObjectId
 from pydantic import BaseModel
 from pymongo import ASCENDING, DESCENDING, IndexModel
 
+from app.core.enums import ItemType
 from app.shared.models.base import BaseDocument
 
 
@@ -20,6 +21,7 @@ class InvoiceCounter(Document):
 
 
 class InvoiceCustomer(BaseModel):
+    id: PydanticObjectId
     name: str
     email: str | None = None
     phone: str | None = None
@@ -27,24 +29,25 @@ class InvoiceCustomer(BaseModel):
 
 
 class InvoiceItem(BaseModel):
+    id: PydanticObjectId
     name: str
+    price: float
     quantity: int = 1
+    subtotal: float
+    type: ItemType
 
 
 class Invoice(BaseDocument):
     user_id: PydanticObjectId
-    invoice_number: str | None = None   # set by the service on create
+    invoice_number: str   # set by the service on create
+    order_id: PydanticObjectId | None = None
     order_number: str | None = None
-    order_reference_number: str | None = None
-    customer_id: PydanticObjectId | None = None
-    item_id: PydanticObjectId | None = None
     customer: InvoiceCustomer
-    item: InvoiceItem | None = None
-    currency: str
+    items: list[InvoiceItem]
     subtotal: float
-    discount: float = 0.0
-    shipping_costs: float = 0.0
+    discount: float = 0
     total: float
+    notes: str | None = None
 
     class Settings:
         name = "invoices"
@@ -54,9 +57,13 @@ class Invoice(BaseDocument):
                 unique=True,
                 partialFilterExpression={"invoice_number": {"$type": "string"}},
             ),
+            IndexModel(
+                [("user_id", ASCENDING), ("order_id", ASCENDING)],
+                unique=True,
+                partialFilterExpression={"order_id": {"$type": "objectId"}},
+            ),
             IndexModel([("user_id", ASCENDING), ("order_number", ASCENDING)]),
-            IndexModel([("user_id", ASCENDING), ("order_reference_number", ASCENDING)]),
-            IndexModel([("user_id", ASCENDING), ("customer_id", ASCENDING)]),
-            IndexModel([("user_id", ASCENDING), ("item_id", ASCENDING)]),
+            IndexModel([("user_id", ASCENDING), ("customer.id", ASCENDING)]),
+            IndexModel([("user_id", ASCENDING), ("items.id", ASCENDING)]),
             IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)]),
         ]
