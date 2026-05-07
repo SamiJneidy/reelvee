@@ -1,7 +1,7 @@
 from beanie import PydanticObjectId
 from pydantic import BaseModel
 
-from app.core.enums import DeliveryStatus, OrderStatus, RecordSource
+from app.core.enums import DeliveryStatus, OrderStatus, PaymentStatus, RecordSource
 
 
 class OrderFilters(BaseModel):
@@ -12,3 +12,4 @@ class OrderFilters(BaseModel):
     customer_id: PydanticObjectId | None = None
     item_id: PydanticObjectId | None = None
     delivery_status: DeliveryStatus | None = None
+    payment_status: PaymentStatus | None = None

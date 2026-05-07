@@ -10,7 +10,7 @@ class OrderItemInput(BaseModel):
     """A line item in a create or update request — ID + quantity only.
     The service resolves the item and builds the snapshot."""
     id: PydanticObjectId
-    quantity: int = Field(1, ge=1)
+    quantity: int = Field(1, ge=0)
     price: float = Field(..., ge=0)
 
 class OrderItemInputPublic(BaseModel):

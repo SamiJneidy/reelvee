@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from beanie import Document, PydanticObjectId
 from pydantic import BaseModel
 from pymongo import ASCENDING, DESCENDING, IndexModel
@@ -8,12 +6,11 @@ from app.core.enums import (
     DeliveryStatus,
     ItemType,
     OrderStatus,
-    PaymentMethod,
-    PaymentStatus,
     RecordSource,
 )
 from app.modules.storage.models import File
 from app.shared.models.base import BaseDocument
+from app.shared.schemas.payment import PaymentDetails
 
 class OrderCounter(Document):
     """Per-store sequential counter for order reference numbers.
@@ -46,15 +43,6 @@ class OrderItem(BaseModel):
     subtotal: float
     type: ItemType
     thumbnail: File | None = None
-
-
-class PaymentDetails(BaseModel):
-    status: PaymentStatus
-    method: PaymentMethod | None = None
-    amount_paid: float | None = None
-    paid_at: datetime | None = None
-    reference: str | None = None
-    notes: str | None = None
 
 
 class Order(BaseDocument):
@@ -90,6 +78,7 @@ class Order(BaseDocument):
             IndexModel([("user_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)]),
             IndexModel([("user_id", ASCENDING), ("is_read", ASCENDING)]),
             IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)]),
+            IndexModel([("user_id", ASCENDING), ("payment.status", ASCENDING)]),
             IndexModel([("customer.id", ASCENDING), ("created_at", DESCENDING)]),
             IndexModel([("items.id", ASCENDING)]),
             IndexModel(

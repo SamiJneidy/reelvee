@@ -17,7 +17,7 @@ class OrderDocs:
         description = (
             "Returns a paginated list of orders for the authenticated store, "
             "sorted by most recent first. "
-            "Optional filters: status, is_read, source, customer_id, item_id, delivery_status."
+            "Optional filters: status, is_read, source, customer_id, item_id, delivery_status, payment_status."
         )
         responses: dict[int | str, dict[str, Any]] = {
             status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),

@@ -25,6 +25,8 @@ class OrderRepository:
             match_filter["items.id"] = filters["item_id"]
         if filters.get("delivery_status") is not None:
             match_filter["delivery_status"] = filters["delivery_status"]
+        if filters.get("payment_status") is not None:
+            match_filter["payment.status"] = filters["payment_status"]
         if filters.get("order_number") is not None:
             match_filter["order_number"] = {
                 "$regex": re.escape(filters["order_number"]),
