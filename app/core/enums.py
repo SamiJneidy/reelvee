@@ -81,6 +81,7 @@ class PermanentFileUploadPath(str, Enum):
     STORE_LOGO      = "uploads/stores/logos"
     STORE_QR_CODE   = "uploads/stores/qr_codes"
     STORE_BACKGROUND_IMAGE = "uploads/stores/background_images"
+    INVOICE_PDF     = "uploads/invoices/pdfs"
 
 
 class RecordSource(str, Enum):

@@ -90,6 +90,7 @@ urllib3==2.4.0
 user-agents==2.2.0
 uvicorn==0.34.0
 watchfiles==1.0.4
+weasyprint==68.1
 websockets==15.0.1
 wrapt==1.17.3
 yarl==1.23.0

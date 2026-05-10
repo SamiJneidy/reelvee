@@ -75,6 +75,18 @@ class InvoiceDocs:
             status.HTTP_404_NOT_FOUND: error_response(InvoiceNotFoundException),
         }
 
+    class GetInvoicePdf:
+        summary = "Get invoice PDF"
+        description = (
+            "Returns the S3 URL of the invoice PDF. "
+            "On the first call the PDF is generated and uploaded to S3, then cached on the invoice document. "
+            "Subsequent calls return the cached URL immediately."
+        )
+        responses: dict[int | str, dict[str, Any]] = {
+            status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
+            status.HTTP_404_NOT_FOUND: error_response(InvoiceNotFoundException),
+        }
+
     class DeleteOwnInvoice:
         summary = "Delete my invoice"
         description = "Deletes an invoice by ID. Invoice must belong to the authenticated store."

@@ -48,6 +48,8 @@ class Invoice(BaseDocument):
     discount: float = 0
     total: float
     notes: str | None = None
+    pdf_url: str | None = None
+    pdf_key: str | None = None
 
     class Settings:
         name = "invoices"

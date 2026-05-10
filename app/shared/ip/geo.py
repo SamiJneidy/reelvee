@@ -4,15 +4,6 @@ from app.core.config import settings, PROJECT_ROOT
 from geoip2.database import Reader as GeoIPReader
 
 
-def _resolve_db_path(db_path: str | None) -> str | None:
-    if not db_path:
-        return None
-    if os.path.isabs(db_path):
-        return db_path
-    # Treat relative paths as relative to the project root, not the CWD.
-    return os.path.join(PROJECT_ROOT, db_path)
-
-
 @lru_cache
 def _get_geoip_reader():
     # db_path = _resolve_db_path(settings.geoip_db_path)

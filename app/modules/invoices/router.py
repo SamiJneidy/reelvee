@@ -1,7 +1,7 @@
 import math
 
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from app.core.context import SessionContext
 from app.core.database import get_session
@@ -64,12 +64,30 @@ async def list_invoices(
 )
 async def create_invoice_from_order(
     order_id: PydanticObjectId,
+    background_tasks: BackgroundTasks,
     current_user: SessionContext = Depends(get_current_session),
     invoice_service: InvoiceService = Depends(get_invoice_service),
     session=Depends(get_session),
 ) -> SingleResponse[InvoiceResponse]:
     invoice = await invoice_service.create_from_order(current_user, order_id, session)
+    background_tasks.add_task(invoice_service.get_or_generate_pdf_url, current_user, invoice.id)
     return SingleResponse[InvoiceResponse](data=invoice)
+
+
+@router.get(
+    "/{invoice_id}/pdf",
+    response_model=SingleResponse[str],
+    summary=InvoiceDocs.GetInvoicePdf.summary,
+    description=InvoiceDocs.GetInvoicePdf.description,
+    responses=InvoiceDocs.GetInvoicePdf.responses,
+)
+async def get_invoice_pdf(
+    invoice_id: PydanticObjectId,
+    current_user: SessionContext = Depends(get_current_session),
+    invoice_service: InvoiceService = Depends(get_invoice_service),
+) -> SingleResponse[str]:
+    url = await invoice_service.get_or_generate_pdf_url(current_user, invoice_id)
+    return SingleResponse[str](data=url)
 
 
 @router.get(
@@ -101,11 +119,13 @@ async def get_invoice(
 )
 async def create_invoice(
     body: InvoiceCreate,
+    background_tasks: BackgroundTasks,
     current_user: SessionContext = Depends(get_current_session),
     invoice_service: InvoiceService = Depends(get_invoice_service),
     session=Depends(get_session),
 ) -> SingleResponse[InvoiceResponse]:
     invoice = await invoice_service.create(current_user, body, session)
+    background_tasks.add_task(invoice_service.get_or_generate_pdf_url, current_user, invoice.id)
     return SingleResponse[InvoiceResponse](data=invoice)
 
 

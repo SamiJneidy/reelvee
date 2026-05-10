@@ -3,6 +3,7 @@ from typing import Any
 from beanie import PydanticObjectId
 
 from app.core.context import SessionContext
+from app.core.enums import PermanentFileUploadPath
 from app.modules.customers.service import CustomerService
 from app.modules.invoices.exceptions import (
     InvoiceAlreadyExistsForOrderException,
@@ -16,6 +17,7 @@ from app.modules.invoices.schemas.requests import InvoiceItemInput
 from app.modules.invoices.schemas.responses import InvoiceResponse
 from app.modules.items.service import ItemService
 from app.modules.orders.service import OrderService
+from app.shared.services.pdf.service import PDFService
 
 
 class InvoiceService:
@@ -25,11 +27,13 @@ class InvoiceService:
         order_service: OrderService,
         customer_service: CustomerService,
         item_service: ItemService,
+        pdf_service: PDFService,
     ) -> None:
         self._repo = invoice_repo
         self._order_service = order_service
         self._customer_service = customer_service
         self._item_service = item_service
+        self._pdf_service = pdf_service
 
     def _to_response(self, invoice) -> InvoiceResponse:
         return InvoiceResponse.model_validate(invoice)
@@ -150,10 +154,36 @@ class InvoiceService:
         )
         return await self.create(current_user, invoice_create, session)
 
+    async def get_or_generate_pdf_url(
+        self,
+        current_user: SessionContext,
+        invoice_id: PydanticObjectId,
+    ) -> str:
+        invoice = await self._repo.get_by_id(current_user.user.id, invoice_id)
+        if not invoice:
+            raise InvoiceNotFoundException()
+
+        if invoice.pdf_url:
+            return invoice.pdf_url
+
+        context = {"invoice": invoice, "store": current_user.store}
+        file = await self._pdf_service.render_and_upload(
+            template_name="invoice.html",
+            filename=f"invoice-{invoice.invoice_number}.pdf",
+            context=context,
+            path=PermanentFileUploadPath.INVOICE_PDF.value,
+        )
+        await self._repo.update_by_id(
+            current_user.user.id, invoice_id, {"pdf_url": file.url, "pdf_key": file.key}
+        )
+        return file.url
+
     async def delete_own_by_id(
         self, current_user: SessionContext, id: PydanticObjectId, session=None
     ) -> None:
         invoice = await self._repo.get_by_id(current_user.user.id, id)
         if not invoice:
             raise InvoiceNotFoundException()
+        if invoice.pdf_key:
+            await self._pdf_service.delete_pdf(invoice.pdf_key)
         await self._repo.delete_by_id(current_user.user.id, id, session=session)
