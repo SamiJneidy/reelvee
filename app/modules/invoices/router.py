@@ -13,6 +13,7 @@ from app.modules.invoices.schemas import (
     InvoiceFilters,
     InvoiceResponse,
 )
+from app.modules.invoices.schemas.responses import InvoicePdfResponse
 from app.shared.schemas import SingleResponse
 from app.shared.schemas.pagination import PaginatedResponse, Pagination
 
@@ -76,7 +77,7 @@ async def create_invoice_from_order(
 
 @router.get(
     "/{invoice_id}/pdf",
-    response_model=SingleResponse[str],
+    response_model=SingleResponse[InvoicePdfResponse],
     summary=InvoiceDocs.GetInvoicePdf.summary,
     description=InvoiceDocs.GetInvoicePdf.description,
     responses=InvoiceDocs.GetInvoicePdf.responses,
@@ -85,9 +86,9 @@ async def get_invoice_pdf(
     invoice_id: PydanticObjectId,
     current_user: SessionContext = Depends(get_current_session),
     invoice_service: InvoiceService = Depends(get_invoice_service),
-) -> SingleResponse[str]:
+) -> SingleResponse[InvoicePdfResponse]:
     url = await invoice_service.get_or_generate_pdf_url(current_user, invoice_id)
-    return SingleResponse[str](data=url)
+    return SingleResponse[InvoicePdfResponse](data=InvoicePdfResponse(url=url))
 
 
 @router.get(

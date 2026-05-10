@@ -36,3 +36,7 @@ class InvoiceResponse(BaseModelWithId, TimeMixin):
     total: float
     notes: str | None = None
     model_config = ConfigDict(from_attributes=True)
+
+class InvoicePdfResponse(BaseModel):
+    url: str
+    model_config = ConfigDict(from_attributes=True)
