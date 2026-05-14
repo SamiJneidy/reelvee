@@ -32,4 +32,4 @@ class LogoutRequest(BaseModel):
     refresh_token: str = Field(..., example="refresh_token")
 
 class RefreshRequest(BaseModel):
-    refresh_token: str = Field(..., example="refresh_token")
+    refresh_token: str | None = Field(None, example="refresh_token")

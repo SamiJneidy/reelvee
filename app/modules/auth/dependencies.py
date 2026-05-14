@@ -1,4 +1,4 @@
-from fastapi import Depends
+from fastapi import Depends, Request
 from typing import Annotated
 
 from app.core.enums import TokenScope
@@ -53,3 +53,8 @@ async def get_user_from_sign_up_complete_token(
     """Resolve user from Authorization: Bearer sign_up_complete token."""
     user = await auth_service.get_user_from_token(token, required_scope=TokenScope.SIGN_UP_COMPLETE)
     return UserResponse.model_validate(user)
+
+async def get_refresh_token(
+    request: Request,
+) -> str:
+    return request.cookies.get("refresh_token") or ""

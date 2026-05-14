@@ -14,6 +14,7 @@ from app.shared.schemas.responses import SuccessResponse
 from .dependencies import (
     get_auth_service,
     get_current_session,
+    get_refresh_token,
 )
 from .docs import AuthDocs
 from .schemas import (
@@ -97,10 +98,10 @@ async def login(
         request, response, user.id, set_cookie=False
     )
     refresh_token = await auth_service.create_refresh_token(
-        request, response, user.id, set_cookie=False
+        request, response, user.id, set_cookie=True
     )
     return SingleResponse[LoginResponse](
-        data=LoginResponse(user=user, access_token=access_token, refresh_token=refresh_token)
+        data=LoginResponse(user=user, access_token=access_token)
     )
 
 
@@ -114,10 +115,10 @@ async def login(
 async def refresh(
     request: Request,
     response: Response,
-    body: RefreshRequest,
+    refresh_token: str = Depends(get_refresh_token),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SingleResponse[RefreshResponse]:
-    data = await auth_service.refresh(request, response, body.refresh_token, set_cookie=False)
+    data = await auth_service.refresh(request, response, refresh_token, set_access_token_cookie=False, set_refresh_token_cookie=True)
     return SingleResponse[RefreshResponse](data=data)
 
 
@@ -130,10 +131,10 @@ async def refresh(
 async def logout(
     request: Request,
     response: Response,
-    body: LogoutRequest,
+    refresh_token: str = Depends(get_refresh_token),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SuccessResponse:
-    await auth_service.logout_session(request, response, body.refresh_token, delete_cookies=False)
+    await auth_service.logout_session(request, response, refresh_token, delete_cookies=True)
     return SuccessResponse(detail="Logged out successfully")
 
 

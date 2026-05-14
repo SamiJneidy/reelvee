@@ -230,7 +230,6 @@ class AuthService:
             max_age=settings.refresh_token_expiration_days * 24 * 60 * 60,
             path="/"
         )
-        return token
 
     async def create_sign_up_complete_token(
         self, request: Request, response: Response, user_id: PydanticObjectId, set_cookie: bool = True
@@ -256,10 +255,15 @@ class AuthService:
             max_age=settings.sign_up_complete_expiration_days * 24 * 60 * 60,
             path="/"
         )
-        return token
 
     async def refresh(
-        self, request: Request, response: Response, refresh_token: str, set_cookie: bool = False, delete_cookies: bool = False
+        self, 
+        request: Request, 
+        response: Response, 
+        refresh_token: str, 
+        set_access_token_cookie: bool = False, 
+        set_refresh_token_cookie: bool = False, 
+        delete_cookies: bool = False
     ) -> RefreshResponse:
         """Rotate refresh token and issue a new access token."""
         payload = self._token_service.decode_token(refresh_token)
@@ -286,9 +290,9 @@ class AuthService:
         # Invalidate the consumed token before issuing a new one
         await self._token_service.revoke_refresh_token(jti)
 
-        access_token = await self.create_access_token(request, response, user_id, set_cookie)
-        refresh_token = await self.create_refresh_token(request, response, user_id, set_cookie, family_id=family_id)
-        return RefreshResponse(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+        access_token = await self.create_access_token(request, response, user_id, set_access_token_cookie)
+        refresh_token = await self.create_refresh_token(request, response, user_id, set_refresh_token_cookie, family_id=family_id)
+        return RefreshResponse(access_token=access_token, token_type="bearer")
 
     async def logout_session(self, request: Request, response: Response, refresh_token: str, delete_cookies: bool = True) -> None:
         """Revoke the current refresh token family."""
