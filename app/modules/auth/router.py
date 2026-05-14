@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.database import get_session
 from app.modules.auth.exceptions import SignUpNotCompletedException
-from app.modules.auth.schemas.requests import RefreshRequest, SignUpRequest, LogoutRequest
+from app.modules.auth.schemas.requests import SignUpRequest
 from app.modules.auth.otp.schemas.requests import SendEmailVerificationOTPRequest
 from app.shared.schemas import SingleResponse
 from app.modules.users.schemas import UserResponse
@@ -118,7 +118,9 @@ async def refresh(
     refresh_token: str = Depends(get_refresh_token),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SingleResponse[RefreshResponse]:
-    data = await auth_service.refresh(request, response, refresh_token, set_access_token_cookie=False, set_refresh_token_cookie=True)
+    data = await auth_service.refresh(
+        request, response, refresh_token, set_access_token_cookie=False
+    )
     return SingleResponse[RefreshResponse](data=data)
 
 

@@ -256,16 +256,16 @@ class AuthService:
             path="/"
         )
 
+
     async def refresh(
         self, 
         request: Request, 
         response: Response, 
         refresh_token: str, 
-        set_access_token_cookie: bool = False, 
-        set_refresh_token_cookie: bool = False, 
+        set_access_token_cookie: bool = False,
         delete_cookies: bool = False
     ) -> RefreshResponse:
-        """Rotate refresh token and issue a new access token."""
+        """Issue a new access token without rotating the refresh token (same JWT until exp)."""
         payload = self._token_service.decode_token(refresh_token)
 
         if payload.get("scope") != TokenScope.REFRESH:
@@ -287,12 +287,15 @@ class AuthService:
                 response.delete_cookie("refresh_token")
             raise InvalidTokenException()
 
-        # Invalidate the consumed token before issuing a new one
-        await self._token_service.revoke_refresh_token(jti)
+        # THIS IS ONLY WHEN USING REFRESH TOKEN ROTATION
+        # await self._token_service.revoke_refresh_token(jti)
 
         access_token = await self.create_access_token(request, response, user_id, set_access_token_cookie)
-        refresh_token = await self.create_refresh_token(request, response, user_id, set_refresh_token_cookie, family_id=family_id)
+        
+        # THIS IS ONLY WHEN USING REFRESH TOKEN ROTATION
+        # refresh_token = await self.create_refresh_token(request, response, user_id, set_refresh_token_cookie, family_id=family_id)
         return RefreshResponse(access_token=access_token, token_type="bearer")
+
 
     async def logout_session(self, request: Request, response: Response, refresh_token: str, delete_cookies: bool = True) -> None:
         """Revoke the current refresh token family."""
