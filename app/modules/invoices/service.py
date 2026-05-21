@@ -166,7 +166,7 @@ class InvoiceService:
         if invoice.pdf_url:
             return invoice.pdf_url
 
-        context = {"invoice": invoice, "store": current_user.store}
+        context = {"invoice": invoice, "store": current_user.store, "user": current_user.user}
         file = await self._pdf_service.render_and_upload(
             template_name="invoice.html",
             filename=f"invoice-{invoice.invoice_number}.pdf",
