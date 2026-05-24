@@ -45,13 +45,12 @@ async def sign_up_complete(
         request, response, current_user_to_complete.id, set_cookie=False
     )
     refresh_token = await auth_service.create_refresh_token(
-        request, response, current_user_to_complete.id, set_cookie=False
+        request, response, current_user_to_complete.id, set_cookie=True
     )
     return SingleResponse[SignUpCompleteResponse](
         data=SignUpCompleteResponse(
             user=user,
             access_token=access_token,
-            refresh_token=refresh_token,
             token_type="bearer"
         )
     )
