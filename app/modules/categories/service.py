@@ -1,7 +1,10 @@
+import structlog
 from beanie import PydanticObjectId
 from pymongo.errors import DuplicateKeyError
 from beanie.exceptions import RevisionIdWasChanged
 
+from app.core.audit import service as audit
+from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.exceptions.exceptions import DuplicateKeyErrorException
 from app.modules.categories.exceptions import CategoryAlreadyExistsException, CategoryNotFoundException
 from app.modules.categories.repository import CategoryRepository
@@ -12,6 +15,8 @@ from app.modules.categories.schemas import (
     CategoryResponse,
     CategoryUpdate,
 )
+
+logger = structlog.get_logger(__name__)
 
 
 class CategoryService:
@@ -49,7 +54,14 @@ class CategoryService:
             category = await self._repo.create(data, session=session)
         except DuplicateKeyError:
             raise DuplicateKeyErrorException("Category already exists")
-        return CategoryInternal.model_validate(category)
+        result = CategoryInternal.model_validate(category)
+        await audit.log_event(
+            AuditEventType.CATEGORY_CREATED,
+            resource_type=AuditResourceType.CATEGORY,
+            resource_id=str(result.id),
+            details={"name": payload.name},
+        )
+        return result
 
     async def update_by_id(self, id: PydanticObjectId, payload: CategoryUpdate, session=None) -> CategoryInternal:
         update_data = payload.model_dump(exclude_none=True)
@@ -64,10 +76,22 @@ class CategoryService:
             raise DuplicateKeyErrorException("Category already exists")
         if not category:
             raise CategoryNotFoundException()
-        return CategoryInternal.model_validate(category)
+        result = CategoryInternal.model_validate(category)
+        await audit.log_event(
+            AuditEventType.CATEGORY_UPDATED,
+            resource_type=AuditResourceType.CATEGORY,
+            resource_id=str(id),
+            details={"changed_fields": list(payload.model_fields_set)},
+        )
+        return result
 
     async def delete_by_id(self, id: PydanticObjectId, session=None) -> None:
         category = await self._repo.get_by_id(id, session=session)
         if not category:
             raise CategoryNotFoundException()
         await self._repo.delete_by_id(id, session=session)
+        await audit.log_event(
+            AuditEventType.CATEGORY_DELETED,
+            resource_type=AuditResourceType.CATEGORY,
+            resource_id=str(id),
+        )

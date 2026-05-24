@@ -1,6 +1,10 @@
 from typing import Any
+
+import structlog
 from beanie import PydanticObjectId
 
+from app.core.audit import service as audit
+from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.context import SessionContext
 from app.core.enums import OrderStatus, RecordSource
 from app.modules.customers.service import CustomerService
@@ -17,6 +21,9 @@ from app.modules.orders.schemas.requests import OrderItemInput, OrderItemInputPu
 from app.modules.orders.schemas.responses import OrderResponse
 from app.modules.items.service import ItemService
 from app.modules.items.exceptions import ItemNotFoundException
+
+logger = structlog.get_logger(__name__)
+
 
 class OrderService:
     def __init__(
@@ -108,6 +115,19 @@ class OrderService:
         data["is_read"] = True
         data["order_number"] = f"{order_number:06d}"
         order = await self._repo.create(data, session=session)
+
+        await audit.log_event(
+            AuditEventType.ORDER_CREATED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.ORDER,
+            resource_id=str(order.id),
+            details={
+                "order_number": order.order_number,
+                "source": RecordSource.INTERNAL,
+                "customer_id": str(payload.customer_id),
+            },
+        )
         return self._to_response(order)
 
     async def update_own_by_id(
@@ -128,6 +148,17 @@ class OrderService:
         # No need to handle customer update, it's not allowed
 
         updated = await self._repo.update_by_id(current_user.user.id, id, update_data, session=session)
+
+        await audit.log_event(
+            AuditEventType.ORDER_UPDATED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.ORDER,
+            resource_id=str(id),
+            details={
+                "order_number": order.order_number
+            },
+        )
         return self._to_response(updated)
 
     async def delete_own_by_id(
@@ -137,6 +168,15 @@ class OrderService:
         if not order:
             raise OrderNotFoundException()
         await self._repo.delete_by_id(current_user.user.id, id, session=session)
+
+        await audit.log_event(
+            AuditEventType.ORDER_DELETED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.ORDER,
+            resource_id=str(id),
+            details={"order_number": order.order_number},
+        )
 
     # -----------------------------------------------------------------
     # Internal — used by other services (e.g. public order submission)
@@ -170,3 +210,13 @@ class OrderService:
         order_number = await self._repo.next_order_number(user_id, session=session)
         data["order_number"] = f"{order_number:06d}"
         await self._repo.create(data, session=session)
+
+        await audit.log_event(
+            AuditEventType.ORDER_CREATED,
+            user_id=user_id,
+            resource_type=AuditResourceType.ORDER,
+            details={
+                "order_number": data["order_number"],
+                "source": RecordSource.WEB,
+            },
+        )

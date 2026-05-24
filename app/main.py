@@ -1,15 +1,34 @@
 import uvicorn
+import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.config import settings
+from app.core.logging import configure_logging
+from app.core.middleware.logging import LoggingMiddleware
 from app.core.exceptions.handlers import register_exception_handlers
 from app.api.v1.routers import router as v1_router
 from app.core.database import init_db
 
+configure_logging(
+    is_dev=settings.environment.upper() in ("DEVELOPMENT", "DEV", "LOCAL"),
+)
+
+logger = structlog.get_logger(__name__)
+
+
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> None:
+async def lifespan(app: FastAPI):
+    logger.info(
+        "app.startup",
+        environment=settings.environment,
+    )
     await init_db()
+    logger.info("app.ready")
     yield
+    logger.info("app.shutdown")
+
 
 app = FastAPI(
     title="reelvee - Backend API",
@@ -32,20 +51,22 @@ app.include_router(v1_router)
 
 register_exception_handlers(app)
 
-# Configure CORS
-origins = [
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:8080",
-    "http://localhost:3000",
-    "https://wasel-black.vercel.app"
-]
+# LoggingMiddleware must be added AFTER CORSMiddleware in the add_middleware
+# call order — Starlette applies middleware in reverse registration order, so
+# LoggingMiddleware ends up outermost (first to receive, last to respond).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8080",
+        "http://localhost:3000",
+        "https://wasel-black.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(LoggingMiddleware)
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

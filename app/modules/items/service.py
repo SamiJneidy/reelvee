@@ -1,6 +1,9 @@
+import structlog
 from beanie import PydanticObjectId
 from slugify import slugify
 
+from app.core.audit import service as audit
+from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.context import SessionContext
 from app.core.enums import PermanentFileUploadPath
 from app.modules.categories.schemas import CategoryResponse
@@ -18,6 +21,8 @@ from app.modules.items.schemas import (
 from app.modules.items.schemas.responses import ItemPublicResponse, ItemResponse
 from app.modules.storage.exceptions import FileDeleteException, FileFinalizeException, FileReplaceException
 from app.modules.storage.schemas import FileInput, FileResponse
+
+logger = structlog.get_logger(__name__)
 
 
 class ItemService:
@@ -161,7 +166,16 @@ class ItemService:
             old_images=[],
             session=session
         )
-        return await self.get_own_by_id(current_user, item.id, session)
+        created = await self.get_own_by_id(current_user, item.id, session)
+        await audit.log_event(
+            AuditEventType.ITEM_CREATED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.ITEM,
+            resource_id=str(item.id),
+            details={"name": payload.name, "slug": created.slug},
+        )
+        return created
 
     async def update_own_by_id(
         self,
@@ -198,7 +212,16 @@ class ItemService:
                 session=session
             )
         
-        return await self.get_own_by_id(current_user, id, session)
+        updated = await self.get_own_by_id(current_user, id, session)
+        await audit.log_event(
+            AuditEventType.ITEM_UPDATED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.ITEM,
+            resource_id=str(id),
+            details={"changed_fields": list(data.model_fields_set)},
+        )
+        return updated
 
 
     async def delete_own_by_id(self, current_user: SessionContext, id: PydanticObjectId, session=None) -> None:
@@ -219,7 +242,15 @@ class ItemService:
                 pass
         
         await self._repo.delete_own_by_id(current_user.user.id, id, session=session)
-    
+        await audit.log_event(
+            AuditEventType.ITEM_DELETED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.ITEM,
+            resource_id=str(id),
+            details={"name": item.name},
+        )
+
 
     async def _update_thumbnail(
         self, 

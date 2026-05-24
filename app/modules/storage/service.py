@@ -1,16 +1,19 @@
-from token import EXACT_TOKEN_TYPES
 import httpx
 import boto3
 import mimetypes
 import uuid
+
+import structlog
 
 from app.core.config import settings
 from app.modules.storage.exceptions import FileDeleteException, FileFinalizeException, FileMoveException, FileReplaceException, FileUploadException
 from app.modules.storage.schemas import FileInput, FileResponse, PresignedURLRequest, PresignedURLResponse
 from app.shared.utils.file_helper import FileHelper
 
-class StorageService:
+logger = structlog.get_logger(__name__)
 
+
+class StorageService:
 
     def __init__(self, s3_client: boto3.client) -> None:
         self.s3_client = s3_client

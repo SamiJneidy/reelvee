@@ -1,5 +1,8 @@
+import structlog
 from beanie import PydanticObjectId
 
+from app.core.audit import service as audit
+from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.context import SessionContext
 from app.modules.expenses.exceptions import ExpenseNotFoundException
 from app.modules.expenses.repository import ExpenseRepository
@@ -10,6 +13,8 @@ from app.modules.expenses.schemas import (
     ExpenseSummaryResponse,
     ExpenseUpdate,
 )
+
+logger = structlog.get_logger(__name__)
 
 
 class ExpenseService:
@@ -49,6 +54,15 @@ class ExpenseService:
         data = payload.model_dump()
         data["user_id"] = current_user.user.id
         expense = await self._repo.create(data, session=session)
+
+        await audit.log_event(
+            AuditEventType.EXPENSE_CREATED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.EXPENSE,
+            resource_id=str(expense.id),
+            details={"amount": payload.amount or None},
+        )
         return self._to_response(expense)
 
     async def update_own_by_id(
@@ -68,6 +82,14 @@ class ExpenseService:
             update_data,
             session=session,
         )
+        await audit.log_event(
+            AuditEventType.EXPENSE_UPDATED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.EXPENSE,
+            resource_id=str(expense.id),
+            details={"amount": payload.amount or None},
+        )
         return self._to_response(updated)
 
     async def delete_own_by_id(
@@ -77,6 +99,14 @@ class ExpenseService:
         if not expense:
             raise ExpenseNotFoundException()
         await self._repo.delete_by_id(current_user.user.id, id, session=session)
+
+        await audit.log_event(
+            AuditEventType.EXPENSE_DELETED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.EXPENSE,
+            resource_id=str(id),
+        )
 
     async def get_own_summary(
         self,

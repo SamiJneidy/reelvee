@@ -1,7 +1,10 @@
 from typing import Any
 
+import structlog
 from beanie import PydanticObjectId
 
+from app.core.audit import service as audit
+from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.context import SessionContext
 from app.core.enums import PermanentFileUploadPath
 from app.modules.customers.service import CustomerService
@@ -18,6 +21,8 @@ from app.modules.invoices.schemas.responses import InvoiceResponse
 from app.modules.items.service import ItemService
 from app.modules.orders.service import OrderService
 from app.shared.services.pdf.service import PDFService
+
+logger = structlog.get_logger(__name__)
 
 
 class InvoiceService:
@@ -124,6 +129,19 @@ class InvoiceService:
         invoice = await self._repo.create(data, session=session)
         if invoice is None:
             raise InvoiceNotFoundException()
+
+        await audit.log_event(
+            AuditEventType.INVOICE_CREATED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.INVOICE,
+            resource_id=str(invoice.id),
+            details={
+                "invoice_number": invoice.invoice_number,
+                "total": invoice.total,
+                "customer_id": str(payload.customer_id),
+            },
+        )
         return self._to_response(invoice)
 
     async def create_from_order(
@@ -176,6 +194,15 @@ class InvoiceService:
         await self._repo.update_by_id(
             current_user.user.id, invoice_id, {"pdf_url": file.url, "pdf_key": file.key}
         )
+
+        await audit.log_event(
+            AuditEventType.INVOICE_PDF_GENERATED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.INVOICE,
+            resource_id=str(invoice_id),
+            details={"invoice_number": invoice.invoice_number},
+        )
         return file.url
 
     async def delete_own_by_id(
@@ -187,3 +214,12 @@ class InvoiceService:
         if invoice.pdf_key:
             await self._pdf_service.delete_pdf(invoice.pdf_key)
         await self._repo.delete_by_id(current_user.user.id, id, session=session)
+
+        await audit.log_event(
+            AuditEventType.INVOICE_DELETED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.INVOICE,
+            resource_id=str(id),
+            details={"invoice_number": invoice.invoice_number},
+        )

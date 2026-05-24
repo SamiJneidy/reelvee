@@ -1,7 +1,10 @@
+import structlog
 from beanie import PydanticObjectId
 from pymongo.errors import DuplicateKeyError
 from beanie.exceptions import RevisionIdWasChanged
 
+from app.core.audit import service as audit
+from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.context import SessionContext
 from app.core.enums import CustomerStatus, RecordSource
 from app.modules.customers.exceptions import (
@@ -18,6 +21,8 @@ from app.modules.customers.schemas import (
     CustomerUpdateInternal,
 )
 from app.modules.customers.schemas.responses import CustomerResponse
+
+logger = structlog.get_logger(__name__)
 
 
 class CustomerService:
@@ -69,6 +74,14 @@ class CustomerService:
             customer = await self._repo.create(data, session=session)
         except (RevisionIdWasChanged, DuplicateKeyError):
             raise CustomerAlreadyExistsException()
+        await audit.log_event(
+            AuditEventType.CUSTOMER_CREATED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.CUSTOMER,
+            resource_id=str(customer.id),
+            details={"source": "internal"},
+        )
         return self._to_response(customer)
 
     async def update_own_by_id(
@@ -88,6 +101,13 @@ class CustomerService:
             )
         except (RevisionIdWasChanged, DuplicateKeyError):
             raise CustomerAlreadyExistsException()
+        await audit.log_event(
+            AuditEventType.CUSTOMER_UPDATED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.CUSTOMER,
+            resource_id=str(id),
+        )
         return self._to_response(updated)
 
     async def delete_own_by_id(
@@ -97,6 +117,13 @@ class CustomerService:
         if not customer:
             raise CustomerNotFoundException()
         await self._repo.delete_by_id(current_user.user.id, id, session=session)
+        await audit.log_event(
+            AuditEventType.CUSTOMER_DELETED,
+            user_id=current_user.user.id,
+            store_id=current_user.store.id,
+            resource_type=AuditResourceType.CUSTOMER,
+            resource_id=str(id),
+        )
 
     # -----------------------------------------------------------------
     # Internal — used by other services (e.g. orders)

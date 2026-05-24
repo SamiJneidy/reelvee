@@ -21,6 +21,7 @@ from app.modules.analytics.models import (
     ItemDailyStat,
 )
 from app.modules.expenses.models import Expense
+from app.core.audit.models import AuditLog
 
 # Single client for the app. Created at import; connect in init_db().
 client = AsyncIOMotorClient(
@@ -50,6 +51,7 @@ async def init_db() -> None:
             StoreDailyOS,
             ItemDailyStat,
             Expense,
+            AuditLog,
         ],
     )
 

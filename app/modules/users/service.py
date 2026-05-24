@@ -1,10 +1,13 @@
 from datetime import datetime, timezone
 from typing import Any
 
+import structlog
 from beanie import PydanticObjectId
 from beanie.exceptions import RevisionIdWasChanged
 from pymongo.errors import DuplicateKeyError
 
+from app.core.audit import service as audit
+from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.context import SessionContext
 from app.core.enums import TokenScope, UserStatus, UserStep
 from app.core.exceptions.exceptions import DuplicateKeyErrorException
@@ -35,6 +38,8 @@ from app.modules.users.schemas.requests import (
 from app.modules.users.schemas.responses import SignUpCompleteResponse, UserResponse
 from app.shared.services import EmailService
 from app.core.config import settings
+
+logger = structlog.get_logger(__name__)
 
 
 class UserService:
@@ -141,6 +146,12 @@ class UserService:
             email, first_name=data.first_name, store_url=data.store_url
         )
         updated_user = await self._repo.get_by_email(email, session)
+
+        await audit.log_event(
+            AuditEventType.USER_ONBOARDING_COMPLETED,
+            user_id=updated_user.id,
+            details={"email": email, "store_url": data.store_url},
+        )
         return UserResponse.model_validate(updated_user)
 
     # ------------------------------------------------------------------
@@ -153,6 +164,12 @@ class UserService:
             raise UserAlreadyExistsException()
         data = payload.model_dump()
         user = await self._repo.create(data, session=session)
+
+        await audit.log_event(
+            AuditEventType.USER_CREATED,
+            user_id=user.id,
+            details={"email": payload.email},
+        )
         return UserInternal.model_validate(user)
 
     async def update_by_email(
@@ -204,7 +221,12 @@ class UserService:
             raise EmailChangeNotAllowedException("Invalid Token. Mismatch!")
         
         updated_user = await self.update_by_email(token.current_email, {"email": token.new_email}, session)
-        
+
+        await audit.log_event(
+            AuditEventType.USER_EMAIL_CHANGED,
+            user_id=updated_user.id,
+            details={"old_email": token.current_email, "new_email": token.new_email},
+        )
         return UserInternal.model_validate(updated_user)
 
     async def increment_invalid_login_attempts(self, email: str, session=None) -> UserInternal:

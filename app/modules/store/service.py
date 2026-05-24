@@ -1,20 +1,17 @@
 import re
 from typing import Any
 
+import structlog
 from beanie import PydanticObjectId
 from beanie.exceptions import RevisionIdWasChanged
 from fastapi import status
 from pymongo.errors import DuplicateKeyError
 
+from app.core.audit import service as audit
+from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.config import settings
 from app.core.enums import (
-    BackgroundType,
-    ButtonShape,
-    ButtonVariant,
-    Font,
-    Layout,
     PermanentFileUploadPath,
-    TemplateId,
 )
 from app.modules.storage.models import File
 from app.modules.storage.schemas import FileInput, FileResponse
@@ -29,6 +26,8 @@ from app.modules.store.repository import StoreRepository
 from app.modules.store.schemas import StoreResponse, StoreUpdate
 from app.modules.store.schemas.base import StoreBase
 from app.shared.utils.qrcode_helper import QRCodeUtils
+
+logger = structlog.get_logger(__name__)
 
 
 def _file_from_response(fr: FileResponse | None) -> File | None:
@@ -127,6 +126,13 @@ class StoreService:
         if logo:
             await self._update_logo(user_id, logo, session=session)
 
+        await audit.log_event(
+            AuditEventType.STORE_CREATED,
+            user_id=user_id,
+            resource_type=AuditResourceType.STORE,
+            resource_id=str(store.id),
+            details={"store_url": store_url},
+        )
         return StoreResponse.model_validate(store)
 
     # ------------------------------------------------------------------
@@ -159,9 +165,16 @@ class StoreService:
                 "Store URL is already in use", status.HTTP_409_CONFLICT
             )
 
-        return StoreResponse.model_validate(
+        updated = StoreResponse.model_validate(
             await self._repo.get_by_user_id(user_id, session=session)
         )
+        await audit.log_event(
+            AuditEventType.STORE_UPDATED,
+            user_id=user_id,
+            resource_type=AuditResourceType.STORE,
+            resource_id=str(updated.id),
+        )
+        return updated
 
     # ------------------------------------------------------------------
     # Logo

@@ -1,8 +1,12 @@
 import uuid
 from datetime import datetime, timezone
+
+import structlog
 from beanie import PydanticObjectId
 from fastapi import Request, Response
 
+from app.core.audit import service as audit
+from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.config import settings
 from app.core.enums import OTPUsage, UserStatus, TokenScope, UserStep
 from app.core.security import hash_password, verify_password
@@ -41,6 +45,9 @@ from app.modules.users.service import UserService
 from app.modules.users.schemas import UserCreate
 from app.modules.auth.repository import AuthRepository
 from app.shared.services import EmailService
+
+logger = structlog.get_logger(__name__)
+
 
 class AuthService:
 
@@ -82,6 +89,12 @@ class AuthService:
         otp_req = SendEmailVerificationOTPRequest(email=data.email)
         await self._otp_service.create_email_verification_otp(otp_req, session)
         await self._email_service.send_welcome_email(data.email)
+
+        await audit.log_event(
+            AuditEventType.AUTH_SIGNUP,
+            user_id=user.id,
+            details={"email": data.email},
+        )
         return UserResponse.model_validate(user)
 
     async def login(self, credentials: LoginRequest, session=None) -> UserResponse:
@@ -90,6 +103,12 @@ class AuthService:
 
         if not verify_password(credentials.password, user.password):
             await self._user_service.increment_invalid_login_attempts(credentials.email, session)
+            await audit.log_event(
+                AuditEventType.AUTH_LOGIN_FAILED,
+                user_id=user.id,
+                status="failure",
+                details={"email": credentials.email, "reason": "invalid_credentials"},
+            )
             raise InvalidCredentialsException()
 
         if not user.is_email_verified:
@@ -112,6 +131,12 @@ class AuthService:
             await self._user_service.reset_invalid_login_attempts(credentials.email, session)
 
         user = await self._user_service.update_last_login(credentials.email, datetime.now(timezone.utc), session)
+
+        await audit.log_event(
+            AuditEventType.AUTH_LOGIN,
+            user_id=user.id,
+            details={"email": credentials.email},
+        )
         return UserResponse.model_validate(user)
 
     async def request_password_reset(
@@ -152,6 +177,12 @@ class AuthService:
         await self._user_service.reset_invalid_login_attempts(data.email, session)
         await self._token_service.revoke_all_refresh_tokens(str(user.id))
 
+        await audit.log_event(
+            AuditEventType.AUTH_PASSWORD_RESET,
+            user_id=user.id,
+            details={"email": data.email},
+        )
+
 
     async def verify_email(
         self, data: VerifyEmailRequest, session=None
@@ -161,8 +192,14 @@ class AuthService:
             raise InvalidOTPException()
         user = await self._user_service.get_by_email(data.email)
         if not user.is_email_verified:
-            user =await self._user_service.update_by_email(data.email, {"is_email_verified": True}, session)
+            user = await self._user_service.update_by_email(data.email, {"is_email_verified": True}, session)
         await self._otp_service.verify_otp(data.code, session)
+
+        await audit.log_event(
+            AuditEventType.AUTH_EMAIL_VERIFIED,
+            user_id=user.id,
+            details={"email": data.email},
+        )
         return UserInternal.model_validate(user)
 
     async def create_access_token(
@@ -294,15 +331,24 @@ class AuthService:
         
         # THIS IS ONLY WHEN USING REFRESH TOKEN ROTATION
         # refresh_token = await self.create_refresh_token(request, response, user_id, set_refresh_token_cookie, family_id=family_id)
+
+        await audit.log_event(
+            AuditEventType.AUTH_TOKEN_REFRESH,
+            user_id=user_id,
+        )
         return RefreshResponse(access_token=access_token, token_type="bearer")
 
 
     async def logout_session(self, request: Request, response: Response, refresh_token: str, delete_cookies: bool = True) -> None:
         """Revoke the current refresh token family."""
+        user_id: PydanticObjectId | None = None
         if refresh_token:
             try:
                 payload = self._token_service.decode_token(refresh_token)
                 family_id = payload.get("family_id")
+                sub = payload.get("sub")
+                if sub:
+                    user_id = PydanticObjectId(sub)
                 if family_id:
                     await self._token_service.revoke_refresh_token_family(family_id)
             except Exception:
@@ -310,6 +356,8 @@ class AuthService:
         if delete_cookies:
             response.delete_cookie("access_token")
             response.delete_cookie("refresh_token")
+
+        await audit.log_event(AuditEventType.AUTH_LOGOUT, user_id=user_id)
 
     async def get_user_from_token(self, token: str, required_scope: TokenScope | None = None) -> UserInternal:
         """Resolve user from JWT. Raises InvalidTokenException if required_scope doesn't match."""
