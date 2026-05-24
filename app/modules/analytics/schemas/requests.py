@@ -31,6 +31,6 @@ class AnalyticsPeriodQuery(BaseModel):
             raise ValueError("Both from_date and to_date must be provided together")
         if self.from_date is None and self.to_date is None and self.days is None:
             self.days = 30
-        if self.days is not None and (self.days < 1 or self.days > 365):
-            raise ValueError("days must be between 1 and 365")
+        if self.days is not None and self.days < 1:
+            raise ValueError("days must be between greater than or equal to 1")
         return self
