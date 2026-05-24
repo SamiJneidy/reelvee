@@ -56,12 +56,7 @@ register_exception_handlers(app)
 # LoggingMiddleware ends up outermost (first to receive, last to respond).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:8000",
-        "http://127.0.0.1:8080",
-        "http://localhost:3000",
-        "https://wasel-black.vercel.app",
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

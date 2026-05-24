@@ -1,6 +1,9 @@
 import os
+from typing import Annotated
+
 from fastapi_mail import ConnectionConfig
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # Absolute path to the project root (the directory that contains the `app` package).
 # Using __file__ keeps this correct regardless of the process working directory,
@@ -24,6 +27,9 @@ class Settings(BaseSettings):
     sign_up_complete_expiration_days: int
     frontend_url: str
 
+    # Comma-separated in .env: CORS_ORIGINS=http://localhost:3000,https://app.example.com
+    cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
     # AWS
     aws_access_key_id: str
     aws_secret_access_key: str
@@ -42,6 +48,13 @@ class Settings(BaseSettings):
     mail_port: int
     mail_server: str
     model_config = SettingsConfigDict(env_file=".env")
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return list(value)
 
 settings = Settings()
 
