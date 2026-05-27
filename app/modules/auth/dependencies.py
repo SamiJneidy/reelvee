@@ -1,3 +1,4 @@
+import time
 from fastapi import Depends, Request
 from typing import Annotated
 
@@ -8,7 +9,10 @@ from app.modules.auth.service import AuthService
 from app.modules.auth.repository import AuthRepository
 from app.modules.auth.otp.dependencies import OTPService, get_otp_service
 from app.modules.auth.tokens.dependencies import TokenService, get_token_service
-from app.modules.store.dependencies import StoreService, get_store_service
+from app.modules.store.dependencies import get_store_repository
+from app.modules.store.exceptions import StoreNotFoundException
+from app.modules.store.repository import StoreRepository
+from app.modules.store.schemas import StoreResponse
 from app.modules.users.dependencies import UserService, get_user_service
 from app.modules.users.schemas import UserResponse
 from app.shared.dependencies.email import EmailService, get_email_service
@@ -38,11 +42,14 @@ def get_auth_service(
 async def get_current_session(
     token: Annotated[str, Depends(oauth2_scheme)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
-    store_service: Annotated[StoreService, Depends(get_store_service)],
+    store_repo: Annotated[StoreRepository, Depends(get_store_repository)],
 ) -> SessionContext:
     """Resolve current user from Authorization: Bearer access token."""
     user = await auth_service.get_user_from_token(token, required_scope=TokenScope.ACCESS)
-    store = await store_service.get_by_user_id(user.id)
+    store_db = await store_repo.get_by_user_id(user.id)
+    if not store_db:
+        raise StoreNotFoundException()
+    store = StoreResponse.model_validate(store_db)
     return SessionContext(user=user, store=store)
 
 

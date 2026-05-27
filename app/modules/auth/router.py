@@ -81,10 +81,9 @@ async def login(
     request: Request,
     response: Response,
     body: LoginRequest,
-    session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SingleResponse[LoginResponse]:
-    user = await auth_service.login(body, session)
+    user = await auth_service.login(body)
 
     if not user.is_completed:
         sign_up_complete_token = await auth_service.create_sign_up_complete_token(
@@ -222,7 +221,6 @@ async def reset_password(
 async def swagger_login(
     request: Request,
     response: Response,
-    session = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
     login_credentials: OAuth2PasswordRequestForm = Depends(),
 ) -> SwaggerLoginResponse:
@@ -230,7 +228,7 @@ async def swagger_login(
         email=login_credentials.username,
         password=login_credentials.password,
     )
-    user = await auth_service.login(login_data, session)
+    user = await auth_service.login(login_data)
     if not user.is_completed:
         raise SignUpNotCompletedException()
     access_token = await auth_service.create_access_token(

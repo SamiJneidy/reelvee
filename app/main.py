@@ -1,7 +1,9 @@
 import uvicorn
 import structlog
+import aioboto3
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
+from fastapi.responses import ORJSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
@@ -30,9 +32,21 @@ async def lifespan(app: FastAPI):
         mongo_log_all_queries=settings.mongo_log_all_queries,
     )
     await init_db()
+
+    # Keep one S3 client per process for the app lifetime.
+    s3_client = aioboto3.Session().client(
+        "s3",
+        region_name=settings.aws_region,
+        aws_access_key_id=settings.aws_access_key_id,
+        aws_secret_access_key=settings.aws_secret_access_key,
+    )
+    app.state.s3_client = s3_client
+
     logger.info("app.ready")
-    yield
-    logger.info("app.shutdown")
+    try:
+        yield
+    finally:
+        logger.info("app.shutdown")
 
 
 app = FastAPI(

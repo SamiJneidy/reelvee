@@ -1,21 +1,11 @@
-import aioboto3
-from typing import Annotated, AsyncGenerator
+from typing import AsyncGenerator
 
-from fastapi import Depends
+from fastapi import Depends, Request
 
-from app.core.config import settings
 from app.modules.storage.service import StorageService
 
-
-async def get_s3_client() -> AsyncGenerator:
-    async with aioboto3.Session().client(
-        "s3",
-        region_name=settings.aws_region,
-        aws_access_key_id=settings.aws_access_key_id,
-        aws_secret_access_key=settings.aws_secret_access_key,
-    ) as client:
-        yield client
-
+async def get_s3_client(request: Request) -> AsyncGenerator:
+    return request.app.state.s3_client
 
 def get_storage_service(
     s3_client = Depends(get_s3_client),
