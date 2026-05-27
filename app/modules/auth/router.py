@@ -3,6 +3,10 @@ from app.modules.auth.schemas.responses import RefreshResponse, SwaggerLoginResp
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
+import time
+
+import structlog
+
 from app.core.database import get_session
 from app.modules.auth.exceptions import SignUpNotCompletedException
 from app.modules.auth.schemas.requests import SignUpRequest
@@ -27,6 +31,8 @@ from .schemas import (
     VerifyEmailResponse,
 )
 from .service import AuthService
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter(
     prefix="/auth",
@@ -84,7 +90,6 @@ async def login(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SingleResponse[LoginResponse]:
     user = await auth_service.login(body)
-
     if not user.is_completed:
         sign_up_complete_token = await auth_service.create_sign_up_complete_token(
             request, response, user.id, set_cookie=False
@@ -99,6 +104,7 @@ async def login(
     refresh_token = await auth_service.create_refresh_token(
         request, response, user.id, set_cookie=True
     )
+
     return SingleResponse[LoginResponse](
         data=LoginResponse(user=user, access_token=access_token)
     )

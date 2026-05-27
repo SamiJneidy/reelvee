@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import datetime, timezone
 
@@ -101,7 +102,12 @@ class AuthService:
         """Validate credentials and return user. Caller checks is_completed to decide which tokens to issue."""
         user = await self._user_service.get_by_email_in_db(credentials.email)
 
-        if not verify_password(credentials.password, user.password):
+        # Run bcrypt in a thread pool — it is sync.
+        password_valid = await asyncio.to_thread(
+            verify_password, credentials.password, user.password
+        )
+
+        if not password_valid:
             await self._user_service.increment_invalid_login_attempts(credentials.email, session)
             await audit.log_event(
                 AuditEventType.AUTH_LOGIN_FAILED,
