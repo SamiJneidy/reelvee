@@ -16,6 +16,7 @@ from app.core.database import init_db
 configure_logging(
     is_dev=settings.environment.upper() in ("DEVELOPMENT", "DEV", "LOCAL"),
     renderer_mode=settings.log_renderer,
+    compact_http_context=settings.log_compact_http_context,
 )
 
 logger = structlog.get_logger(__name__)
