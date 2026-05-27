@@ -33,20 +33,19 @@ async def lifespan(app: FastAPI):
     )
     await init_db()
 
-    # Keep one S3 client per process for the app lifetime.
-    s3_client = aioboto3.Session().client(
+    # One aioboto3 S3 client per process — entered here, closed on shutdown.
+    async with aioboto3.Session().client(
         "s3",
         region_name=settings.aws_region,
         aws_access_key_id=settings.aws_access_key_id,
         aws_secret_access_key=settings.aws_secret_access_key,
-    )
-    app.state.s3_client = s3_client
+    ) as s3_client:
+        app.state.s3_client = s3_client
 
-    logger.info("app.ready")
-    try:
+        logger.info("app.ready")
         yield
-    finally:
-        logger.info("app.shutdown")
+
+    logger.info("app.shutdown")
 
 
 app = FastAPI(

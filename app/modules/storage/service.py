@@ -1,5 +1,4 @@
 import httpx
-import boto3
 import mimetypes
 import uuid
 
@@ -15,7 +14,7 @@ logger = structlog.get_logger(__name__)
 
 class StorageService:
 
-    def __init__(self, s3_client: boto3.client) -> None:
+    def __init__(self, s3_client) -> None:
         self.s3_client = s3_client
 
 
