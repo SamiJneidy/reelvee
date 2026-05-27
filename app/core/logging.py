@@ -5,11 +5,11 @@ import structlog
 from structlog.types import Processor
 
 
-def _dev_cleanup(logger: object, method: str, event_dict: dict) -> dict:
+def _compact_http_context(logger: object, method: str, event_dict: dict) -> dict:
     """
-    Dev-only display processor — trims verbose context fields so the
-    console stays readable.  Runs only on the rendered output; the full
-    values remain in structlog contextvars for the audit service.
+    Display-only processor that trims noisy HTTP context fields so console
+    output is easier to read. This does NOT mutate contextvars, only the
+    rendered output line.
     """
     if "request_id" in event_dict:
         event_dict["request_id"] = event_dict["request_id"][:8]
@@ -17,18 +17,24 @@ def _dev_cleanup(logger: object, method: str, event_dict: dict) -> dict:
     return event_dict
 
 
-def configure_logging(is_dev: bool = False) -> None:
+def configure_logging(
+    *,
+    is_dev: bool = False,
+    renderer_mode: str = "json",
+    compact_http_context: bool = True,
+) -> None:
     """
     Configure structlog with stdlib integration.
 
     Uses an allowlist for log levels — third-party libraries stay at INFO
     on the root logger, so their DEBUG output (pymongo heartbeats, botocore
-    requests, etc.) is never emitted.  Only the application namespace
-    (``app.*``) gets DEBUG in development.
+    requests, etc.) is never emitted.  Only ``app.*`` gets DEBUG in dev.
 
-    - Dev:  DEBUG for app code + pretty ConsoleRenderer
-    - Prod: INFO everywhere + JSONRenderer
+    Renderer modes:
+    - ``json``    : machine-friendly JSON lines (default)
+    - ``console`` : human-friendly colored console output
     """
+    use_console_renderer = renderer_mode == "console"
     shared_processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
@@ -37,15 +43,14 @@ def configure_logging(is_dev: bool = False) -> None:
         structlog.processors.StackInfoRenderer(),
     ]
 
-    if is_dev:
+    if use_console_renderer:
         renderer: Processor = structlog.dev.ConsoleRenderer(
             colors=True, pad_level=False, pad_event=0
         )
-        render_chain: list[Processor] = [
-            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            _dev_cleanup,
-            renderer,
-        ]
+        render_chain: list[Processor] = [structlog.stdlib.ProcessorFormatter.remove_processors_meta]
+        if compact_http_context:
+            render_chain.append(_compact_http_context)
+        render_chain.append(renderer)
     else:
         renderer = structlog.processors.JSONRenderer()
         render_chain = [

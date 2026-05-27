@@ -13,6 +13,7 @@ from app.core.database import init_db
 
 configure_logging(
     is_dev=settings.environment.upper() in ("DEVELOPMENT", "DEV", "LOCAL"),
+    renderer_mode=settings.log_renderer,
 )
 
 logger = structlog.get_logger(__name__)
@@ -23,6 +24,10 @@ async def lifespan(app: FastAPI):
     logger.info(
         "app.startup",
         environment=settings.environment,
+        log_renderer=settings.log_renderer,
+        mongo_query_logging_enabled=settings.mongo_query_logging_enabled,
+        mongo_slow_query_ms=settings.mongo_slow_query_ms,
+        mongo_log_all_queries=settings.mongo_log_all_queries,
     )
     await init_db()
     logger.info("app.ready")

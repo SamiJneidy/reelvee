@@ -4,6 +4,7 @@ from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.core.config import settings
+from app.core.mongo_monitor import MongoQueryLogger
 
 from app.modules.users.models import User
 from app.modules.auth.otp.models import OTP
@@ -27,6 +28,16 @@ from app.core.audit.models import AuditLog
 client = AsyncIOMotorClient(
     settings.mongodb_uri,
     tz_aware=True,
+    event_listeners=(
+        [
+            MongoQueryLogger(
+                slow_query_ms=settings.mongo_slow_query_ms,
+                log_all=settings.mongo_log_all_queries,
+            )
+        ]
+        if settings.mongo_query_logging_enabled
+        else []
+    ),
 )
 database = client[settings.mongodb_name]
 
