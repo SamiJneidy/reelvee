@@ -3,7 +3,6 @@ import structlog
 import aioboto3
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
-from fastapi.responses import ORJSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
@@ -12,6 +11,8 @@ from app.core.middleware.logging import LoggingMiddleware
 from app.core.exceptions.handlers import register_exception_handlers
 from app.api.v1.routers import router as v1_router
 from app.core.database import init_db
+from app.shared.email.dependencies import init_ses_client
+from app.shared.storage.dependencies import init_s3_client
 
 configure_logging(
     is_dev=settings.environment.upper() in ("DEVELOPMENT", "DEV", "LOCAL"),
@@ -35,13 +36,23 @@ async def lifespan(app: FastAPI):
     await init_db()
 
     # One aioboto3 S3 client per process — entered here, closed on shutdown.
-    async with aioboto3.Session().client(
-        "s3",
-        region_name=settings.aws_region,
-        aws_access_key_id=settings.aws_access_key_id,
-        aws_secret_access_key=settings.aws_secret_access_key,
-    ) as s3_client:
-        app.state.s3_client = s3_client
+    boto3_session = aioboto3.Session()
+    async with (
+        boto3_session.client(
+            "s3",
+            region_name=settings.aws_region,
+            aws_access_key_id=settings.aws_access_key_id,
+            aws_secret_access_key=settings.aws_secret_access_key,
+        ) as s3_client,
+            boto3_session.client(
+            "ses",
+            region_name=settings.aws_region,
+            aws_access_key_id=settings.aws_access_key_id,
+            aws_secret_access_key=settings.aws_secret_access_key,
+        ) as ses_client
+    ):
+        init_ses_client(ses_client)
+        init_s3_client(s3_client)
 
         logger.info("app.ready")
         yield

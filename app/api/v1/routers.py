@@ -6,7 +6,7 @@ from app.modules.items.routers import (
     public_router as items_public_router,
     private_router as items_private_router,
 )
-from app.modules.storage.router import router as storage_router
+from app.shared.storage.router import router as storage_router
 from app.modules.categories.router import router as categories_router
 from app.modules.customers.router import router as customers_router
 from app.modules.orders.routers import (
