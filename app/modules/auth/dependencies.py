@@ -15,7 +15,7 @@ from app.modules.store.repository import StoreRepository
 from app.modules.store.schemas import StoreResponse
 from app.modules.users.dependencies import UserService, get_user_service
 from app.modules.users.schemas import UserResponse
-from app.shared.dependencies.email import EmailService, get_email_service
+from app.shared.email.dependencies import EmailService, get_email_service
 
 
 def get_auth_repository() -> AuthRepository:
