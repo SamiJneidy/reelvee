@@ -1,11 +1,11 @@
 import asyncio
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment
 from weasyprint import HTML
 
-from app.modules.storage.schemas import FileResponse
-from app.modules.storage.service import StorageService
+from app.shared.storage.schemas import FileResponse
+from app.shared.storage.service import StorageService
 
 
 class PDFService:

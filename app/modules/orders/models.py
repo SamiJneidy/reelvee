@@ -8,7 +8,7 @@ from app.core.enums import (
     OrderStatus,
     RecordSource,
 )
-from app.modules.storage.models import File
+from app.shared.storage.models import File
 from app.shared.models.base import BaseDocument
 from app.shared.schemas.payment import PaymentDetails
 

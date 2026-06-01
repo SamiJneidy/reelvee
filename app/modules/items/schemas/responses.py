@@ -3,7 +3,7 @@ from pydantic import ConfigDict
 from app.core.enums import ItemStatus, ItemType
 from app.modules.categories.schemas import CategoryResponse
 from app.modules.items.models import ItemAttribute
-from app.modules.storage.schemas import FileResponse
+from app.shared.storage.schemas import FileResponse
 from app.shared.schemas.base import BaseModelWithId
 from app.shared.schemas.mixins import TimeMixin, TenantMixin
 

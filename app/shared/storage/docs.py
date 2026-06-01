@@ -3,7 +3,7 @@ from fastapi import status
 
 from app.shared.utils.docs import error_response
 from app.modules.auth.tokens.exceptions import InvalidTokenException
-from app.modules.storage.exceptions import FileUploadException
+from app.shared.storage.exceptions import FileUploadException
 
 
 class StorageDocs:

@@ -5,8 +5,8 @@ import uuid
 import structlog
 
 from app.core.config import settings
-from app.modules.storage.exceptions import FileDeleteException, FileFinalizeException, FileMoveException, FileReplaceException, FileUploadException
-from app.modules.storage.schemas import FileInput, FileResponse, PresignedURLRequest, PresignedURLResponse
+from app.shared.storage.exceptions import FileDeleteException, FileFinalizeException, FileMoveException, FileReplaceException, FileUploadException
+from app.shared.storage.schemas import FileInput, FileResponse, PresignedURLRequest, PresignedURLResponse
 from app.shared.utils.file_helper import FileHelper
 
 logger = structlog.get_logger(__name__)

@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 from app.core.enums import ItemStatus, ItemType
 from app.modules.items.models import ItemAttribute
-from app.modules.storage.schemas import FileInput, FileResponse
+from app.shared.storage.schemas import FileInput, FileResponse
 
 class ItemCreate(BaseModel):
     name: str = Field(..., min_length=1, description="Name is required")

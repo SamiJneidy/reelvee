@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from app.core.enums import ItemStatus, ItemType
 
 from app.modules.items.models import ItemAttribute
-from app.modules.storage.schemas import FileResponse
+from app.shared.storage.schemas import FileResponse
 
 class ItemBase(BaseModel):
     name: str

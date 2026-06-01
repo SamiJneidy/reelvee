@@ -12,8 +12,8 @@ from app.core.enums import (
 )
 from app.shared.models.base import BaseDocument
 from app.shared.schemas.common import Link
-from app.modules.storage.models import File
-from app.modules.storage.schemas import FileResponse
+from app.shared.storage.models import File
+from app.shared.storage.schemas import FileResponse
 
 
 class ThemeConfig(BaseModel):

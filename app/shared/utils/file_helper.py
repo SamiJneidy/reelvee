@@ -1,4 +1,4 @@
-from app.shared.exceptions.files import InvalidFilenameException
+from app.shared.exceptions import InvalidFilenameException
 
 class FileHelper:
     @staticmethod

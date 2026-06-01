@@ -7,7 +7,7 @@ from app.modules.items.dependencies import ItemService, get_item_service
 from app.modules.orders.dependencies import OrderService, get_order_service
 from app.modules.invoices.repository import InvoiceRepository
 from app.modules.invoices.service import InvoiceService
-from app.shared.services.pdf.dependencies import PDFService, get_pdf_service
+from app.shared.pdf.dependencies import PDFService, get_pdf_service
 
 
 def get_invoice_repository() -> InvoiceRepository:

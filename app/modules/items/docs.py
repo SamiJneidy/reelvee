@@ -8,7 +8,7 @@ from app.shared.utils.docs import error_response
 from app.modules.categories.exceptions import CategoryNotFoundException
 from app.modules.auth.tokens.exceptions import InvalidTokenException
 from app.modules.items.exceptions import ItemNotFoundException
-from app.modules.storage.exceptions import FileDeleteException
+from app.shared.storage.exceptions import FileDeleteException
 from app.modules.users.exceptions import UserNotFoundException
 
 

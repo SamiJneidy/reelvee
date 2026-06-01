@@ -8,7 +8,7 @@ from app.core.enums import (
     Layout,
     TemplateId,
 )
-from app.modules.storage.schemas import FileResponse
+from app.shared.storage.schemas import FileResponse
 from app.shared.schemas.common import Link
 
 

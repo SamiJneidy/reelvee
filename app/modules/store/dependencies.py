@@ -1,7 +1,7 @@
 from fastapi import Depends
 from typing import Annotated
 
-from app.modules.storage.dependencies import StorageService, get_storage_service
+from app.shared.storage.dependencies import StorageService, get_storage_service
 from app.modules.store.repository import StoreRepository
 from app.modules.store.service import StoreService
 

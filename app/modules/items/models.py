@@ -4,7 +4,7 @@ from beanie import Document, Indexed, Link, PydanticObjectId
 from app.core.enums import ItemStatus, ItemType
 from app.modules.users.models import User
 from app.shared.models import BaseDocument
-from app.modules.storage.models import File
+from app.shared.storage.models import File
 
 class ItemAttribute(BaseModel):
     name: str

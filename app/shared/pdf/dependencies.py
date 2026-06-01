@@ -3,8 +3,8 @@ from functools import lru_cache
 from fastapi import Depends
 from jinja2 import Environment, FileSystemLoader
 
-from app.modules.storage.dependencies import StorageService, get_storage_service
-from app.shared.services.pdf.service import PDFService
+from app.shared.storage.dependencies import StorageService, get_storage_service
+from app.shared.pdf.service import PDFService
 
 
 @lru_cache

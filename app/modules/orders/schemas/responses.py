@@ -3,7 +3,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 from app.core.enums import DeliveryStatus, ItemType, OrderStatus, RecordSource
 from app.modules.orders.models import PaymentDetails
 from app.modules.orders.schemas.base import OrderBase
-from app.modules.storage.schemas import FileResponse
+from app.shared.storage.schemas import FileResponse
 from app.shared.schemas.base import BaseModelWithId
 from app.shared.schemas.mixins import TimeMixin
 from beanie import PydanticObjectId

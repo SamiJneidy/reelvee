@@ -1,4 +1,4 @@
-from app.modules.storage.schemas import FileResponse
+from app.shared.storage.schemas import FileResponse
 from app.shared.schemas.base import BaseModelWithId
 from .base import StoreBase, ThemeConfigBase, PageConfigBase, ProfileConfigBase
 from beanie import PydanticObjectId

@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
-from app.modules.storage.dependencies import StorageService, get_storage_service
-from app.modules.storage.docs import StorageDocs
-from app.modules.storage.schemas import FileInput, PresignedURLRequest, PresignedURLResponse
+from app.shared.storage.dependencies import StorageService, get_storage_service
+from app.shared.storage.docs import StorageDocs
+from app.shared.storage.schemas import FileInput, PresignedURLRequest, PresignedURLResponse
 from app.shared.schemas import ListResponse, SingleResponse
 
 

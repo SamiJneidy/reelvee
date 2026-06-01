@@ -4,7 +4,7 @@ from typing import Annotated
 from app.modules.items.repository import ItemRepository
 from app.modules.items.service import ItemService
 from app.modules.categories.dependencies import CategoryService, get_category_service
-from app.modules.storage.dependencies import StorageService, get_storage_service
+from app.shared.storage.dependencies import StorageService, get_storage_service
 
 
 def get_item_repository() -> ItemRepository:

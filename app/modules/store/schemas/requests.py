@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import BackgroundType, ButtonShape, ButtonVariant, Font, Layout, TemplateId
-from app.modules.storage.schemas import FileInput
+from app.shared.storage.schemas import FileInput
 from app.shared.schemas.common import Link
 
 _BG_IMG_EX = [{"id": "temp-uuid", "key": "temp/backgrounds/abc.jpg", "url": None}]

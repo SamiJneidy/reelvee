@@ -8,7 +8,7 @@ from app.core.context import SessionContext
 from app.core.enums import PermanentFileUploadPath
 from app.modules.categories.schemas import CategoryResponse
 from app.modules.categories.service import CategoryService
-from app.modules.storage import StorageService
+from app.shared.storage import StorageService
 from app.modules.items.exceptions import ItemNotFoundException
 from app.modules.items.repository import ItemRepository
 from app.modules.items.schemas import (
@@ -19,8 +19,8 @@ from app.modules.items.schemas import (
     ItemUpdateInternal,
 )
 from app.modules.items.schemas.responses import ItemPublicResponse, ItemResponse
-from app.modules.storage.exceptions import FileDeleteException, FileFinalizeException, FileReplaceException
-from app.modules.storage.schemas import FileInput, FileResponse
+from app.shared.storage.exceptions import FileDeleteException, FileFinalizeException, FileReplaceException
+from app.shared.storage.schemas import FileInput, FileResponse
 
 logger = structlog.get_logger(__name__)
 
@@ -192,7 +192,7 @@ class ItemService:
             await self._validate_categories(data.categories)
     
         # Update first, if success then update images (thumbnail and images)
-        updated_item = await self._repo.update_own_by_id(current_user.user.id, id, update_data, session=session)
+        await self._repo.update_own_by_id(current_user.user.id, id, update_data, session=session)
         
         if "thumbnail" in data.model_fields_set:
             await self._update_thumbnail(

@@ -20,7 +20,7 @@ from app.modules.invoices.schemas.requests import InvoiceItemInput
 from app.modules.invoices.schemas.responses import InvoiceResponse
 from app.modules.items.service import ItemService
 from app.modules.orders.service import OrderService
-from app.shared.services.pdf.service import PDFService
+from app.shared.pdf.service import PDFService
 
 logger = structlog.get_logger(__name__)
 

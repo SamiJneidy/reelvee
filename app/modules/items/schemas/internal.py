@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import ItemStatus, ItemType
 from app.modules.items.models import ItemAttribute
-from app.modules.storage.schemas import FileInput
+from app.shared.storage.schemas import FileInput
 
 from .base import ItemBase
 from app.shared.schemas.base import BaseModelWithId

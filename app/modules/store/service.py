@@ -13,9 +13,9 @@ from app.core.config import settings
 from app.core.enums import (
     PermanentFileUploadPath,
 )
-from app.modules.storage.models import File
-from app.modules.storage.schemas import FileInput, FileResponse
-from app.modules.storage.service import StorageService
+from app.shared.storage.models import File
+from app.shared.storage.schemas import FileInput, FileResponse
+from app.shared.storage.service import StorageService
 from app.modules.store.exceptions import (
     InvalidStoreUrlException,
     StoreAlreadyExistsException,
