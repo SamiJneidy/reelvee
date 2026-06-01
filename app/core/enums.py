@@ -1,5 +1,10 @@
 from enum import Enum
 
+class AuthProvider(str, Enum):
+    EMAIL = "EMAIL"
+    GOOGLE = "GOOGLE"
+
+
 class Gender(str, Enum):
     MALE = "MALE"
     FEMALE = "FEMALE"

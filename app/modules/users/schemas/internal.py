@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.core.enums import UserPlan, UserStatus, UserStep
+from app.core.enums import AuthProvider, UserPlan, UserStatus, UserStep
 from app.shared.schemas.base import BaseModelWithId
 from .base import UserBase
 
@@ -15,11 +15,13 @@ class UserInternal(UserBase, BaseModelWithId):
     is_email_verified: bool
     is_completed: bool
     is_deleted: bool
+    google_id: str | None = None
+    auth_provider: AuthProvider = AuthProvider.EMAIL
     model_config = ConfigDict(from_attributes=True)
 
 
 class UserInDB(UserInternal):
-    password: str
+    password: str | None = None
 
 
 class UserUpdateInternal(BaseModel):

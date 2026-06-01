@@ -21,6 +21,7 @@ from .dependencies import (
     get_refresh_token,
 )
 from .docs import AuthDocs
+from .google.router import router as google_router
 from .schemas import (
     GetMeResponse,
     LoginRequest,
@@ -38,6 +39,8 @@ router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
 )
+
+router.include_router(google_router)
 
 
 # ---------------------------------------------------------------------

@@ -1,7 +1,6 @@
 import os
 from typing import Annotated, Literal
 
-from fastapi_mail import ConnectionConfig
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
@@ -53,12 +52,20 @@ class Settings(BaseSettings):
     # If not set or file not found, country defaults to "unknown"
     geoip_db_path: str | None = None
 
+    # Google OAuth — optional; only required when Google login is enabled
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    # Must match the "Authorized redirect URI" configured in Google Cloud Console
+    google_redirect_uri: str | None = None
+
     # Mail
-    mail_username: str
-    mail_password: str
+    # MAIL_FROM is used by both SES (verified sender) and SMTP (fastmail).
+    # The SMTP fields below are only needed when using FastMailEmailService.
     mail_from: str
-    mail_port: int
-    mail_server: str
+    mail_username: str = ""
+    mail_password: str = ""
+    mail_port: int = 587
+    mail_server: str = ""
     model_config = SettingsConfigDict(env_file=".env")
 
     @field_validator("cors_origins", mode="before")
@@ -74,15 +81,3 @@ class Settings(BaseSettings):
         return str(value).strip().lower()
 
 settings = Settings()
-
-mail_config = ConnectionConfig(
-    MAIL_USERNAME=settings.mail_username,
-    MAIL_PASSWORD=settings.mail_password,
-    MAIL_FROM=settings.mail_from,
-    MAIL_PORT=settings.mail_port,
-    MAIL_SERVER=settings.mail_server,
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
-    USE_CREDENTIALS=True,
-    VALIDATE_CERTS=True,
-)

@@ -9,7 +9,7 @@ from fastapi import Request, Response
 from app.core.audit import service as audit
 from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.config import settings
-from app.core.enums import OTPUsage, UserStatus, TokenScope, UserStep
+from app.core.enums import AuthProvider, OTPUsage, UserStatus, TokenScope, UserStep
 from app.core.security import hash_password, verify_password
 from app.modules.auth.exceptions import (
     InvalidCredentialsException,
@@ -45,7 +45,7 @@ from app.modules.users.schemas.internal import UserInternal
 from app.modules.users.service import UserService
 from app.modules.users.schemas import UserCreate
 from app.modules.auth.repository import AuthRepository
-from app.shared.services import EmailService
+from app.shared.email.dependencies import EmailService
 
 logger = structlog.get_logger(__name__)
 
@@ -101,6 +101,9 @@ class AuthService:
     async def login(self, credentials: LoginRequest, session=None) -> UserResponse:
         """Validate credentials and return user. Caller checks is_completed to decide which tokens to issue."""
         user = await self._user_service.get_by_email_in_db(credentials.email)
+
+        if user.auth_provider == AuthProvider.GOOGLE or user.password is None:
+            raise InvalidCredentialsException()
 
         # Run bcrypt in a thread pool — it is sync.
         password_valid = await asyncio.to_thread(

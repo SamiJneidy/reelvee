@@ -9,7 +9,7 @@ from pymongo.errors import DuplicateKeyError
 from app.core.audit import service as audit
 from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.context import SessionContext
-from app.core.enums import TokenScope, UserStatus, UserStep
+from app.core.enums import AuthProvider, TokenScope, UserStatus, UserStep
 from app.core.exceptions.exceptions import DuplicateKeyErrorException
 from app.core.security import verify_password
 from app.modules.auth.tokens.schemas import EmailChangeToken
@@ -36,7 +36,7 @@ from app.modules.users.schemas.requests import (
     SignUpCompleteRequest,
 )
 from app.modules.users.schemas.responses import SignUpCompleteResponse, UserResponse
-from app.shared.services import EmailService
+from app.shared.email.dependencies import EmailService
 from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
@@ -195,6 +195,8 @@ class UserService:
         self, current_user: SessionContext, data: RequestEmailChangeRequest, session=None
     ) -> None:
         user = await self.get_by_id_in_db(current_user.user.id)
+        if user.auth_provider == AuthProvider.GOOGLE or user.password is None:
+            raise EmailChangeNotAllowedException(detail="Email change is not available for Google accounts")
         if not verify_password(data.password, user.password):
             raise EmailChangeNotAllowedException(detail="Incorrect password")
         payload = EmailChangeToken(

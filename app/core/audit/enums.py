@@ -10,6 +10,7 @@ class AuditEventType(str, Enum):
     AUTH_TOKEN_REFRESH     = "auth.token_refresh"
     AUTH_PASSWORD_RESET    = "auth.password_reset"
     AUTH_EMAIL_VERIFIED    = "auth.email_verified"
+    AUTH_GOOGLE_LOGIN      = "auth.google_login"
 
     # User
     USER_CREATED               = "user.created"

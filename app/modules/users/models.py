@@ -1,14 +1,16 @@
 from datetime import datetime
 from beanie import Indexed
 
-from app.core.enums import UserPlan, UserStatus, UserStep
+from app.core.enums import AuthProvider, UserPlan, UserStatus, UserStep
 from app.shared.models.base import BaseDocument
 
 
 class User(BaseDocument):
     """Account + personal profile. Store customization lives in the stores collection."""
     email: Indexed(str, unique=True)
-    password: str
+    password: str | None = None
+    google_id: str | None = None
+    auth_provider: AuthProvider = AuthProvider.EMAIL
 
     # Personal profile (completed during onboarding)
     first_name: str | None = None

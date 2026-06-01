@@ -1,14 +1,16 @@
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field
 
-from app.core.enums import UserPlan, UserStatus, UserStep
-from app.modules.storage.schemas import FileInput
+from app.core.enums import AuthProvider, UserPlan, UserStatus, UserStep
+from app.shared.storage.schemas import FileInput
 from app.shared.schemas.common import Link
 
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=8)
+    password: str | None = Field(default=None, min_length=8)
+    google_id: str | None = None
+    auth_provider: AuthProvider = AuthProvider.EMAIL
     first_name: str | None = None
     last_name: str | None = None
     country_code: str | None = None
