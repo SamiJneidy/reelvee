@@ -48,7 +48,7 @@ async def google_login(
     return redirect
 
 
-@router.get("/callback", summary="Google OAuth callback — do not call directly")
+@router.get("/callback", include_in_schema=False)
 async def google_callback(
     request: Request,
     response: Response,
