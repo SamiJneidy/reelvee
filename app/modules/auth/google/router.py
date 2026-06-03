@@ -23,19 +23,16 @@ router = APIRouter(prefix="/google", tags=["Google OAuth"])
 
 FRONTEND_CALLBACK_PATH = "/auth/google/callback"
 
-
 def _frontend_callback_url() -> str:
     return f"{settings.frontend_url}{FRONTEND_CALLBACK_PATH}"
 
-
 def _error_redirect(message: str) -> RedirectResponse:
     params = urlencode({"error": message})
-    return RedirectResponse(url=f"{_frontend_callback_url()}?{params}")
+    return RedirectResponse(url=f"{settings.frontend_url}/login?{params}")
 
 
 @router.get("/login", summary="Redirect to Google consent screen")
 async def google_login(
-    response: Response,
     google_auth_service: Annotated[GoogleAuthService, Depends(get_google_auth_service)],
 ) -> RedirectResponse:
     state = GoogleAuthService.generate_state()
@@ -89,18 +86,25 @@ async def google_callback(
         details={"email": user_info.email},
     )
 
-    if not user.is_completed:
-        sign_up_complete_token = await auth_service.create_sign_up_complete_token(
+    # Build the redirect first, then set cookies directly on it.
+    # Cookies set on the injected Response parameter are NOT transferred to an
+    # explicitly returned RedirectResponse — they must be set on the object returned.
+    if user.is_completed:
+        redirect_to_page = "dashboard"
+        token = await auth_service.create_refresh_token(
             request, response, user.id, set_cookie=False
         )
-        params = urlencode({"sign_up_complete_token": sign_up_complete_token})
+        params = urlencode({"redirect_to": redirect_to_page})
+        redirect_response = RedirectResponse(url=f"{_frontend_callback_url()}?{params}")
+        await auth_service.set_refresh_token_cookie(request, redirect_response, token)
     else:
-        access_token = await auth_service.create_access_token(
+        redirect_to_page = "user-onboarding"
+        token = await auth_service.create_sign_up_complete_token(
             request, response, user.id, set_cookie=False
         )
-        await auth_service.create_refresh_token(request, response, user.id, set_cookie=True)
-        params = urlencode({"access_token": access_token})
+        params = urlencode({"redirect_to": redirect_to_page})
+        redirect_response = RedirectResponse(url=f"{_frontend_callback_url()}?{params}")
+        await auth_service.set_sign_up_complete_token_cookie(request, redirect_response, token)
 
-    redirect_response = RedirectResponse(url=f"{_frontend_callback_url()}?{params}")
     redirect_response.delete_cookie("oauth_state")
     return redirect_response

@@ -28,15 +28,12 @@ class Settings(BaseSettings):
 
     # Comma-separated in .env: CORS_ORIGINS=http://localhost:3000,https://app.example.com
     cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    
     # Logging:
-    # - LOG_RENDERER=json|console
-    # - LOG_COMPACT_HTTP_CONTEXT=true|false
     log_renderer: Literal["json", "console"] = "json"
     log_compact_http_context: bool = True
-    # Mongo query timing:
-    # - MONGO_QUERY_LOGGING_ENABLED=true|false
-    # - MONGO_SLOW_QUERY_MS=200
-    # - MONGO_LOG_ALL_QUERIES=true|false
+
+    # Mongo logging:
     mongo_query_logging_enabled: bool = False
     mongo_slow_query_ms: int = 200
     mongo_log_all_queries: bool = False

@@ -94,11 +94,11 @@ async def login(
 ) -> SingleResponse[LoginResponse]:
     user = await auth_service.login(body)
     if not user.is_completed:
-        sign_up_complete_token = await auth_service.create_sign_up_complete_token(
-            request, response, user.id, set_cookie=False
+        await auth_service.create_sign_up_complete_token(
+            request, response, user.id, set_cookie=True
         )
         return SingleResponse[LoginResponse](
-            data=LoginResponse(user=user, sign_up_complete_token=sign_up_complete_token)
+            data=LoginResponse(user=user)
         )
 
     access_token = await auth_service.create_access_token(
@@ -179,13 +179,12 @@ async def verify_email(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SingleResponse[VerifyEmailResponse]:
     user = await auth_service.verify_email(body, session)
-    sign_up_complete_token = None
     if not user.is_completed:
-        sign_up_complete_token = await auth_service.create_sign_up_complete_token(
-            request, response, user.id, set_cookie=False
+        await auth_service.create_sign_up_complete_token(
+            request, response, user.id, set_cookie=True
         )
     return SingleResponse[VerifyEmailResponse](
-        data=VerifyEmailResponse(user=user, sign_up_complete_token=sign_up_complete_token)
+        data=VerifyEmailResponse(user=user)
     )
 
 

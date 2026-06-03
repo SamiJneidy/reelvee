@@ -54,9 +54,11 @@ async def get_current_session(
 
 
 async def get_user_from_sign_up_complete_token(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    request: Request,
+    # token: Annotated[str, Depends(oauth2_scheme)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> UserResponse:
+    token = request.cookies.get("sign_up_complete_token") or ""
     """Resolve user from Authorization: Bearer sign_up_complete token."""
     user = await auth_service.get_user_from_token(token, required_scope=TokenScope.SIGN_UP_COMPLETE)
     return UserResponse.model_validate(user)
