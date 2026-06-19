@@ -15,6 +15,16 @@ _BRAND = "Reelvee"
 _BRAND_COLOR = "#4F46E5"
 _FONT = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
 
+# ---------------------------------------------------------------------------
+# Email subjects — single source of truth for all adapters
+# ---------------------------------------------------------------------------
+
+SUBJECT_WELCOME = "Welcome to Reelvee — verify your email next"
+SUBJECT_ONBOARDING = "Your Reelvee store is ready"
+SUBJECT_EMAIL_VERIFICATION = "Verify your email address"
+SUBJECT_PASSWORD_RESET = "Reset your password"
+SUBJECT_EMAIL_CHANGE = "Confirm your email change"
+
 
 def _base(title: str, preview: str, body_html: str) -> str:
     return f"""<!DOCTYPE html>

@@ -1,5 +1,7 @@
 import asyncio
 
+import httpx
+
 from app.core.config import settings
 from app.shared.email.exceptions import EmailCouldNotBeSentException
 from app.shared.email.port import EmailService
@@ -16,24 +18,28 @@ from app.shared.email.templates import (
     welcome_template,
 )
 
-class SESEmailService(EmailService):
-    """Concrete email implementation backed by Amazon SES (aioboto3)."""
+_RESEND_EMAILS_URL = "https://api.resend.com/emails"
 
-    def __init__(self, ses_client) -> None:
-        self._client = ses_client
+
+class ResendEmailService(EmailService):
+    """Concrete email implementation backed by the Resend API (httpx async)."""
+
+    def __init__(self) -> None:
         self._sender = f"{settings.mail_sender_name} <{settings.mail_from}>"
+        self._client = httpx.AsyncClient(
+            headers={
+                "Authorization": f"Bearer {settings.resend_api_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=10.0,
+        )
 
     async def _send(self, to: list[str], subject: str, body: str, retries: int = 3) -> None:
+        payload = {"from": self._sender, "to": to, "subject": subject, "html": body}
         for attempt in range(retries):
             try:
-                await self._client.send_email(
-                    Source=self._sender,
-                    Destination={"ToAddresses": to},
-                    Message={
-                        "Subject": {"Data": subject, "Charset": "UTF-8"},
-                        "Body": {"Html": {"Data": body, "Charset": "UTF-8"}},
-                    },
-                )
+                response = await self._client.post(_RESEND_EMAILS_URL, json=payload)
+                response.raise_for_status()
                 return
             except Exception:
                 if attempt == retries - 1:

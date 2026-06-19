@@ -6,23 +6,30 @@ from app.core.config import settings
 from app.shared.email.exceptions import EmailCouldNotBeSentException
 from app.shared.email.port import EmailService
 
+from app.shared.email.templates import (
+    SUBJECT_EMAIL_CHANGE,
+    SUBJECT_EMAIL_VERIFICATION,
+    SUBJECT_ONBOARDING,
+    SUBJECT_PASSWORD_RESET,
+    SUBJECT_WELCOME,
+    email_change_template,
+    email_verification_otp_template,
+    onboarding_template,
+    password_reset_template,
+    welcome_template,
+)
+
 mail_config = ConnectionConfig(
     MAIL_USERNAME=settings.mail_username,
     MAIL_PASSWORD=settings.mail_password,
     MAIL_FROM=settings.mail_from,
+    MAIL_FROM_NAME=settings.mail_sender_name,
     MAIL_PORT=settings.mail_port,
     MAIL_SERVER=settings.mail_server,
     MAIL_STARTTLS=True,
     MAIL_SSL_TLS=False,
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True,
-)
-from app.shared.email.templates import (
-    email_change_template,
-    email_verification_otp_template,
-    onboarding_template,
-    password_reset_template,
-    welcome_template,
 )
 
 
@@ -53,7 +60,7 @@ class FastMailEmailService(EmailService):
     async def send_welcome_email(self, email: str) -> None:
         await self._send(
             to=[email],
-            subject="Welcome to Reelvee — verify your email next",
+            subject=SUBJECT_WELCOME,
             body=welcome_template(email),
         )
 
@@ -64,27 +71,27 @@ class FastMailEmailService(EmailService):
         store_public_url = f"{settings.frontend_url.rstrip('/')}/@{store_url}"
         await self._send(
             to=[email],
-            subject="Your Storelink store is ready",
+            subject=SUBJECT_ONBOARDING,
             body=onboarding_template(email, first_name, store_public_url),
         )
 
     async def send_email_verification_otp(self, email: str, code: str) -> None:
         await self._send(
             to=[email],
-            subject="Verify your email address",
+            subject=SUBJECT_EMAIL_VERIFICATION,
             body=email_verification_otp_template(code),
         )
 
     async def send_password_reset_link(self, email: str, link: str) -> None:
         await self._send(
             to=[email],
-            subject="Reset your password",
+            subject=SUBJECT_PASSWORD_RESET,
             body=password_reset_template(link),
         )
 
     async def send_email_change_link(self, email: str, link: str) -> None:
         await self._send(
             to=[email],
-            subject="Confirm your email change",
+            subject=SUBJECT_EMAIL_CHANGE,
             body=email_change_template(link),
         )

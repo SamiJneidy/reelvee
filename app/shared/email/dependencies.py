@@ -1,6 +1,8 @@
 from functools import lru_cache
 from fastapi import Depends
+from app.core.config import settings
 from app.shared.email.adapters.fastmail import FastMailEmailService
+from app.shared.email.adapters.resend import ResendEmailService
 from app.shared.email.adapters.ses import SESEmailService
 from app.shared.email.port import EmailService
 
@@ -24,9 +26,19 @@ def get_fastmail_email_service() -> FastMailEmailService:
 
 
 @lru_cache
+def get_resend_email_service() -> ResendEmailService:
+    return ResendEmailService()
+
+
+@lru_cache
 def get_email_service(
     ses_email_service: SESEmailService = Depends(get_ses_email_service),
     fastmail_email_service: FastMailEmailService = Depends(get_fastmail_email_service),
+    resend_email_service: ResendEmailService = Depends(get_resend_email_service),
 ) -> EmailService:
-    # To switch providers, change the return value here.
-    return ses_email_service
+    providers: dict[str, EmailService] = {
+        "ses": ses_email_service,
+        "fastmail": fastmail_email_service,
+        "resend": resend_email_service,
+    }
+    return providers[settings.current_email_provider]

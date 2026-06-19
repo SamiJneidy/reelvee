@@ -56,13 +56,19 @@ class Settings(BaseSettings):
     google_redirect_uri: str | None = None
 
     # Mail
-    # MAIL_FROM is used by both SES (verified sender) and SMTP (fastmail).
-    # The SMTP fields below are only needed when using FastMailEmailService.
+    # MAIL_FROM / MAIL_SENDER_NAME define the From address shown in inboxes:
+    #   "Reelvee <support@reelvee.com>"
+    # SMTP fields (mail_username/password/port/server) are only needed for FastMail adapter.
+    # RESEND_API_KEY is only needed for Resend adapter.
+    # CURRENT_EMAIL_PROVIDER selects the active adapter: ses | fastmail | resend
     mail_from: str
+    mail_sender_name: str = "Reelvee"
     mail_username: str = ""
     mail_password: str = ""
     mail_port: int = 587
     mail_server: str = ""
+    resend_api_key: str | None = None
+    current_email_provider: Literal["ses", "fastmail", "resend"] = "ses"
     model_config = SettingsConfigDict(env_file=".env")
 
     @field_validator("cors_origins", mode="before")
