@@ -21,14 +21,16 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/google", tags=["Google OAuth"])
 
-FRONTEND_CALLBACK_PATH = "/auth/google/callback"
-
 def _frontend_callback_url() -> str:
-    return f"{settings.frontend_url}{FRONTEND_CALLBACK_PATH}"
+    frontend_url = settings.frontend_url_dev if settings.frontend_environment == "DEVELOPMENT" else settings.frontend_url
+    return f"{frontend_url}{settings.frontend_callback_path}"
+
+def _frontend_base_url() -> str:
+    return settings.frontend_url_dev if settings.frontend_environment == "DEVELOPMENT" else settings.frontend_url
 
 def _error_redirect(message: str) -> RedirectResponse:
     params = urlencode({"error": message})
-    return RedirectResponse(url=f"{settings.frontend_url}/login?{params}")
+    return RedirectResponse(url=f"{_frontend_base_url()}/login?{params}")
 
 
 @router.get("/login", summary="Redirect to Google consent screen")

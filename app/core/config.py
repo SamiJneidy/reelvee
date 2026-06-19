@@ -24,12 +24,17 @@ class Settings(BaseSettings):
     user_invitation_token_expiration_minutes: int
     otp_expiration_minutes: int
     sign_up_complete_expiration_days: int
-    frontend_url: str
 
-    # Comma-separated in .env: CORS_ORIGINS=http://localhost:3000,https://app.example.com
+    # Frontend
+    frontend_url: str
+    frontend_url_dev: str
+    frontend_callback_path: str
+    frontend_environment: Literal["DEVELOPMENT", "PRODUCTION"]
+
+    # CORS
     cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     
-    # Logging:
+    # Logging
     log_renderer: Literal["json", "console"] = "json"
     log_compact_http_context: bool = True
 
@@ -56,11 +61,6 @@ class Settings(BaseSettings):
     google_redirect_uri: str | None = None
 
     # Mail
-    # MAIL_FROM / MAIL_SENDER_NAME define the From address shown in inboxes:
-    #   "Reelvee <support@reelvee.com>"
-    # SMTP fields (mail_username/password/port/server) are only needed for FastMail adapter.
-    # RESEND_API_KEY is only needed for Resend adapter.
-    # CURRENT_EMAIL_PROVIDER selects the active adapter: ses | fastmail | resend
     mail_from: str
     mail_sender_name: str = "Reelvee"
     mail_username: str = ""
@@ -68,7 +68,8 @@ class Settings(BaseSettings):
     mail_port: int = 587
     mail_server: str = ""
     resend_api_key: str | None = None
-    current_email_provider: Literal["ses", "fastmail", "resend"] = "ses"
+    current_email_provider: Literal["ses", "fastmail", "resend"]
+
     model_config = SettingsConfigDict(env_file=".env")
 
     @field_validator("cors_origins", mode="before")
