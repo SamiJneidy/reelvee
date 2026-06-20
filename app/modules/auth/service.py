@@ -102,7 +102,7 @@ class AuthService:
         """Validate credentials and return user. Caller checks is_completed to decide which tokens to issue."""
         user = await self._user_service.get_by_email_in_db(credentials.email)
 
-        if user.auth_provider == AuthProvider.GOOGLE or user.password is None:
+        if user.password is None:
             raise InvalidCredentialsException()
 
         # Run bcrypt in a thread pool — it is sync.
