@@ -23,7 +23,6 @@ class OrderCreate(OrderBase):
     customer_id: PydanticObjectId
     items: list[OrderItemInput] = Field(min_length=1)
     status: OrderStatus
-    total_cost: float | None = Field(None, ge=0)
     discount_amount: float = Field(0.0, ge=0)
     shipping_fees: float = Field(0.0, ge=0)
     extra_fees: float = Field(0.0, ge=0)
@@ -38,7 +37,6 @@ class OrderCreatePublic(BaseModel):
 
 class OrderUpdate(OrderBase):
     items: list[OrderItemInputPublic] | None = Field(None, min_length=1)
-    total_cost: float | None = Field(None, ge=0)
     discount_amount: float | None = Field(None, ge=0)
     shipping_fees: float | None = Field(None, ge=0)
     extra_fees: float | None = Field(None, ge=0)

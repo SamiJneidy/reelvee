@@ -49,15 +49,16 @@ class OrderService:
         discount_amount: float = 0.0,
         shipping_fees: float = 0.0,
         extra_fees: float = 0.0,
-    ) -> tuple[float, float]:
+    ) -> tuple[float, float, float]:
         """Return (subtotal, total) computed from resolved items and fee adjustments.
 
         subtotal = sum of each item's subtotal
         total    = subtotal - discount_amount + shipping_fees + extra_fees
         """
         subtotal = round(sum(item["subtotal"] for item in items), 2)
+        total_cost = round(sum(item["cost"] for item in items if item["cost"] is not None), 2)
         total = round(subtotal - discount_amount + shipping_fees + extra_fees, 2)
-        return subtotal, total
+        return subtotal, total, total_cost
 
     async def _resolve_items(
         self, 
@@ -124,7 +125,7 @@ class OrderService:
         customer = await self._customer_service.get_own_by_id(current_user, payload.customer_id)
         order_number = await self._repo.next_order_number(current_user.user.id, session=session)
         
-        subtotal, total = self._calculate_totals(
+        subtotal, total, total_cost = self._calculate_totals(
             items,
             data.get("discount_amount", 0.0),
             data.get("shipping_fees", 0.0),
@@ -133,6 +134,7 @@ class OrderService:
         data["items"] = items
         data["subtotal"] = subtotal
         data["total"] = total
+        data["total_cost"] = total_cost
         data["customer"] = customer.model_dump()
         data["user_id"] = current_user.user.id
         data["source"] = RecordSource.INTERNAL
@@ -175,7 +177,7 @@ class OrderService:
         pricing_fields = {"items", "discount_amount", "shipping_fees", "extra_fees"}
         if payload.model_fields_set & pricing_fields:
             items_for_calc = update_data.get("items") or [i.model_dump() for i in order.items]
-            subtotal, total = self._calculate_totals(
+            subtotal, total, total_cost = self._calculate_totals(
                 items_for_calc,
                 update_data.get("discount_amount", order.discount_amount or 0.0),
                 update_data.get("shipping_fees", order.shipping_fees or 0.0),
@@ -183,6 +185,7 @@ class OrderService:
             )
             update_data["subtotal"] = subtotal
             update_data["total"] = total
+            update_data["total_cost"] = total_cost
 
         updated = await self._repo.update_by_id(current_user.user.id, id, update_data, session=session)
 
@@ -247,10 +250,11 @@ class OrderService:
                 session=session
             )
 
-        subtotal, total = self._calculate_totals(items)
+        subtotal, total, total_cost = self._calculate_totals(items)
         data["items"] = items
         data["subtotal"] = subtotal
         data["total"] = total
+        data["total_cost"] = total_cost
         data["user_id"] = user_id
         data["customer"] = customer.model_dump()
         data["source"] = RecordSource.WEB

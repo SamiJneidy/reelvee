@@ -15,7 +15,7 @@ class Item(BaseDocument):
     name: str
     description: str | None = None
     price: float
-    cost: float | None = None
+    cost: float = 0.0
     thumbnail: File | None = None
     images: list[File] = []
     categories: list[PydanticObjectId] = []

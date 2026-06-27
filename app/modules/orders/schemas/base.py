@@ -5,10 +5,10 @@ from app.modules.orders.models import PaymentDetails
 
 
 class OrderBase(BaseModel):
-    discount_amount: float = 0.0
-    shipping_fees: float = 0.0
-    extra_fees: float = 0.0
-    total_cost: float | None = None
+    discount_amount: float
+    shipping_fees: float
+    extra_fees: float
+    total_cost: float
     payment: PaymentDetails | None = None
     customer_message: str | None = None
     address: str | None = None
