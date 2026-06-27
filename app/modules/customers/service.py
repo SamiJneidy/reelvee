@@ -94,7 +94,7 @@ class CustomerService:
         customer = await self._repo.get_by_id(current_user.user.id, id)
         if not customer:
             raise CustomerNotFoundException()
-        update_data = payload.model_dump(exclude_none=True)
+        update_data = payload.model_dump(exclude_unset=True)
         try:
             updated = await self._repo.update_by_id(
                 current_user.user.id, id, update_data, session=session

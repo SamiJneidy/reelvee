@@ -64,7 +64,7 @@ class CategoryService:
         return result
 
     async def update_by_id(self, id: PydanticObjectId, payload: CategoryUpdate, session=None) -> CategoryInternal:
-        update_data = payload.model_dump(exclude_none=True)
+        update_data = payload.model_dump(exclude_unset=True)
         if update_data.get("name"):
             update_data["name"] = update_data["name"].strip().lower()
             existing = await self._repo.get_by_name(update_data["name"], session=session)

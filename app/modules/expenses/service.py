@@ -75,7 +75,7 @@ class ExpenseService:
         expense = await self._repo.get_by_id(current_user.user.id, id)
         if not expense:
             raise ExpenseNotFoundException()
-        update_data = payload.model_dump(exclude_none=True)
+        update_data = payload.model_dump(exclude_unset=True)
         updated = await self._repo.update_by_id(
             current_user.user.id,
             id,
