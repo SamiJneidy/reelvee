@@ -14,5 +14,5 @@ class InvoiceAlreadyExistsForOrderException(BaseAppException):
 
 
 class InvoiceOrderNotCompletedException(BaseAppException):
-    detail = "The order data is not complete. Cannot create an invoice for an order that is not completed"
+    detail = "The order status is not completed. Cannot create an invoice for an order that is not completed"
     status_code = status.HTTP_400_BAD_REQUEST

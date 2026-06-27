@@ -43,6 +43,22 @@ class OrderService:
     def _to_internal(self, order) -> OrderInternal:
         return OrderInternal.model_validate(order)
 
+    @staticmethod
+    def _calculate_totals(
+        items: list[dict],
+        discount_amount: float = 0.0,
+        shipping_fees: float = 0.0,
+        extra_fees: float = 0.0,
+    ) -> tuple[float, float]:
+        """Return (subtotal, total) computed from resolved items and fee adjustments.
+
+        subtotal = sum of each item's subtotal
+        total    = subtotal - discount_amount + shipping_fees + extra_fees
+        """
+        subtotal = round(sum(item["subtotal"] for item in items), 2)
+        total = round(subtotal - discount_amount + shipping_fees + extra_fees, 2)
+        return subtotal, total
+
     async def _resolve_items(
         self, 
         user_id: PydanticObjectId, 
@@ -108,7 +124,15 @@ class OrderService:
         customer = await self._customer_service.get_own_by_id(current_user, payload.customer_id)
         order_number = await self._repo.next_order_number(current_user.user.id, session=session)
         
+        subtotal, total = self._calculate_totals(
+            items,
+            data.get("discount_amount", 0.0),
+            data.get("shipping_fees", 0.0),
+            data.get("extra_fees", 0.0),
+        )
         data["items"] = items
+        data["subtotal"] = subtotal
+        data["total"] = total
         data["customer"] = customer.model_dump()
         data["user_id"] = current_user.user.id
         data["source"] = RecordSource.INTERNAL
@@ -142,10 +166,23 @@ class OrderService:
             raise OrderNotFoundException()
 
         update_data = payload.model_dump(exclude_unset=True, exclude={"items"})
+
         if payload.items is not None:
             items = await self._resolve_items(current_user.user.id, payload.items, visible_only=False)
             update_data["items"] = items
-        # No need to handle customer update, it's not allowed
+
+        # Check if pricing fields were changed
+        pricing_fields = {"items", "discount_amount", "shipping_fees", "extra_fees"}
+        if payload.model_fields_set & pricing_fields:
+            items_for_calc = update_data.get("items") or [i.model_dump() for i in order.items]
+            subtotal, total = self._calculate_totals(
+                items_for_calc,
+                update_data.get("discount_amount", order.discount_amount or 0.0),
+                update_data.get("shipping_fees", order.shipping_fees or 0.0),
+                update_data.get("extra_fees", order.extra_fees or 0.0),
+            )
+            update_data["subtotal"] = subtotal
+            update_data["total"] = total
 
         updated = await self._repo.update_by_id(current_user.user.id, id, update_data, session=session)
 
@@ -178,6 +215,15 @@ class OrderService:
             details={"order_number": order.order_number},
         )
 
+    async def set_invoice_id(
+        self,
+        user_id: PydanticObjectId,
+        order_id: PydanticObjectId,
+        invoice_id: PydanticObjectId | None,
+        session=None,
+    ) -> None:
+        await self._repo.update_by_id(user_id, order_id, {"invoice_id": invoice_id}, session=session)
+
     # -----------------------------------------------------------------
     # Internal — used by other services (e.g. public order submission)
     # -----------------------------------------------------------------
@@ -201,7 +247,10 @@ class OrderService:
                 session=session
             )
 
+        subtotal, total = self._calculate_totals(items)
         data["items"] = items
+        data["subtotal"] = subtotal
+        data["total"] = total
         data["user_id"] = user_id
         data["customer"] = customer.model_dump()
         data["source"] = RecordSource.WEB

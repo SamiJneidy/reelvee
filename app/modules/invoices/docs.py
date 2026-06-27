@@ -35,18 +35,6 @@ class InvoiceDocs:
             status.HTTP_404_NOT_FOUND: error_response(InvoiceNotFoundException),
         }
 
-    class CreateInvoice:
-        summary = "Create invoice"
-        description = (
-            "Creates a new invoice for the authenticated store. "
-            "Customer and items are resolved from the database (same pattern as manual orders). "
-            "Optional ``order_id`` links the invoice to an order and copies its order number. "
-            "Invoice number is assigned automatically in the format INV-000001."
-        )
-        responses: dict[int | str, dict[str, Any]] = {
-            status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
-        }
-
     class CreateInvoiceFromOrder:
         summary = "Create invoice from order"
         description = (
@@ -64,17 +52,6 @@ class InvoiceDocs:
             status.HTTP_409_CONFLICT: error_response(InvoiceAlreadyExistsForOrderException),
         }
 
-    class UpdateOwnInvoice:
-        summary = "Update my invoice"
-        description = (
-            "Updates an existing invoice by ID. Only provided fields are updated. "
-            "Invoice must belong to the authenticated store."
-        )
-        responses: dict[int | str, dict[str, Any]] = {
-            status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
-            status.HTTP_404_NOT_FOUND: error_response(InvoiceNotFoundException),
-        }
-
     class GetInvoicePdf:
         summary = "Get invoice PDF"
         description = (
@@ -87,10 +64,3 @@ class InvoiceDocs:
             status.HTTP_404_NOT_FOUND: error_response(InvoiceNotFoundException),
         }
 
-    class DeleteOwnInvoice:
-        summary = "Delete my invoice"
-        description = "Deletes an invoice by ID. Invoice must belong to the authenticated store."
-        responses: dict[int | str, dict[str, Any]] = {
-            status.HTTP_401_UNAUTHORIZED: error_response(InvalidTokenException),
-            status.HTTP_404_NOT_FOUND: error_response(InvoiceNotFoundException),
-        }

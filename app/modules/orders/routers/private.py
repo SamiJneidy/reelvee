@@ -1,11 +1,12 @@
 import math
 
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from app.core.context import SessionContext
 from app.core.database import get_session
 from app.modules.auth.dependencies import get_current_session
+from app.modules.invoices.dependencies import InvoiceService, get_invoice_service
 from app.modules.orders.dependencies import OrderService, get_order_service
 from app.modules.orders.docs import OrderDocs
 from app.modules.orders.schemas import (
@@ -120,11 +121,20 @@ async def create_order(
 async def update_order(
     order_id: PydanticObjectId,
     body: OrderUpdate,
+    background_tasks: BackgroundTasks,
     current_user: SessionContext = Depends(get_current_session),
     order_service: OrderService = Depends(get_order_service),
+    invoice_service: InvoiceService = Depends(get_invoice_service),
     session=Depends(get_session),
 ) -> SingleResponse[OrderResponse]:
     order = await order_service.update_own_by_id(current_user, order_id, body, session)
+    if order.invoice_id is not None:
+        background_tasks.add_task(
+            invoice_service.get_or_generate_pdf_url,
+            current_user,
+            order.invoice_id,
+            True,
+        )
     return SingleResponse[OrderResponse](data=order)
 
 

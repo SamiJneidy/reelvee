@@ -17,8 +17,6 @@ class InvoiceRepository:
             match_filter["order_id"] = filters["order_id"]
         if filters.get("customer_id") is not None:
             match_filter["customer.id"] = filters["customer_id"]
-        if filters.get("item_id") is not None:
-            match_filter["items.id"] = filters["item_id"]
         for field in ("invoice_number", "order_number"):
             if filters.get(field) is not None:
                 match_filter[field] = {

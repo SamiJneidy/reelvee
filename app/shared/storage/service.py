@@ -131,23 +131,29 @@ class StorageService:
         filename: str,
         content: bytes,
         content_type: str | None = None,
+        key: str | None = None,
     ) -> FileResponse:
-        """Upload bytes to S3 and return the file key"""
-        extension = FileHelper.get_extension(filename)
-        file_id = str(uuid.uuid4())
-        file_key = f"{path}/{file_id}.{extension}"
+        """Upload bytes to S3 and return the file response.
+
+        Pass ``key`` to use a deterministic S3 key (overwrites the same object
+        on re-upload). Omit to have a UUID-based key generated automatically.
+        """
+        if key is None:
+            extension = FileHelper.get_extension(filename)
+            file_id = str(uuid.uuid4())
+            key = f"{path}/{file_id}.{extension}"
         content_type = content_type or mimetypes.guess_type(filename)[0]
         try:
             await self.s3_client.put_object(
                 Bucket=settings.aws_bucket,
-                Key=file_key,
+                Key=key,
                 Body=content,
                 ContentType=content_type,
             )
         except Exception:
             raise FileUploadException()
-        url = self.get_file_url(file_key)
-        return FileResponse(id=file_id, key=file_key, url=url)
+        url = self.get_file_url(key)
+        return FileResponse(id=key, key=key, url=url)
 
 
     async def upload_file(

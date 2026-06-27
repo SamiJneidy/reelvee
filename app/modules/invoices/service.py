@@ -1,4 +1,4 @@
-from typing import Any
+import secrets
 
 import structlog
 from beanie import PydanticObjectId
@@ -6,19 +6,15 @@ from beanie import PydanticObjectId
 from app.core.audit import service as audit
 from app.core.audit.enums import AuditEventType, AuditResourceType
 from app.core.context import SessionContext
-from app.core.enums import PermanentFileUploadPath
-from app.modules.customers.service import CustomerService
+from app.core.enums import OrderStatus, PermanentFileUploadPath
 from app.modules.invoices.exceptions import (
-    InvoiceAlreadyExistsForOrderException,
     InvoiceNotFoundException,
     InvoiceOrderNotCompletedException,
 )
 from app.modules.invoices.models import InvoiceCustomer
 from app.modules.invoices.repository import InvoiceRepository
 from app.modules.invoices.schemas import InvoiceCreate, InvoiceFilters
-from app.modules.invoices.schemas.requests import InvoiceItemInput
 from app.modules.invoices.schemas.responses import InvoiceResponse
-from app.modules.items.service import ItemService
 from app.modules.orders.service import OrderService
 from app.shared.pdf.service import PDFService
 
@@ -30,40 +26,14 @@ class InvoiceService:
         self,
         invoice_repo: InvoiceRepository,
         order_service: OrderService,
-        customer_service: CustomerService,
-        item_service: ItemService,
         pdf_service: PDFService,
     ) -> None:
         self._repo = invoice_repo
         self._order_service = order_service
-        self._customer_service = customer_service
-        self._item_service = item_service
         self._pdf_service = pdf_service
 
     def _to_response(self, invoice) -> InvoiceResponse:
         return InvoiceResponse.model_validate(invoice)
-
-    async def _resolve_items(
-        self,
-        user_id: PydanticObjectId,
-        item_inputs: list[InvoiceItemInput],
-    ) -> list[dict[str, Any]]:
-        resolved: list[dict[str, Any]] = []
-        for item_input in item_inputs:
-            db_item = await self._item_service.get_by_id(user_id, item_input.id)
-            price = item_input.price
-            subtotal = item_input.quantity * price
-            resolved.append(
-                {
-                    "id": db_item.id,
-                    "name": db_item.name,
-                    "quantity": item_input.quantity,
-                    "price": round(price, 2),
-                    "subtotal": round(subtotal, 2),
-                    "type": db_item.type,
-                }
-            )
-        return resolved
 
     async def get_next_invoice_number(self, user_id: PydanticObjectId, session) -> str:
         seq = await self._repo.next_invoice_number(user_id, session=session)
@@ -93,42 +63,46 @@ class InvoiceService:
         )
         return total, [self._to_response(inv) for inv in invoices]
 
-    async def create(
-        self, current_user: SessionContext, payload: InvoiceCreate, session
+    async def create_from_order(
+        self,
+        current_user: SessionContext,
+        order_id: PydanticObjectId,
+        generate_pdf: bool = False,
+        session=None,
     ) -> InvoiceResponse:
-        customer_resp = await self._customer_service.get_own_by_id(
-            current_user, payload.customer_id
-        )
-        customer_snapshot = InvoiceCustomer(
-            id=customer_resp.id,
-            name=customer_resp.name,
-            email=customer_resp.email,
-            phone=customer_resp.phone,
-            address=customer_resp.address,
+        order = await self._order_service.get_own_by_id(current_user, order_id)
+
+        if order.status != OrderStatus.COMPLETED:
+            raise InvoiceOrderNotCompletedException()
+
+        existing = await self._repo.get_by_order_id(
+            current_user.user.id, order_id, session=session
         )
 
-        items = await self._resolve_items(current_user.user.id, payload.items)
+        # No need to sync invoice fields with order, invoice holds minimal data that is not affected by order updates.
+        if existing:
+            return self._to_response(existing)
 
-        order_id = None
-        order_number = None
-        if payload.order_id is not None:
-            order = await self._order_service.get_own_by_id(
-                current_user, payload.order_id
-            )
-            order_id = order.id
-            order_number = order.order_number
-
-        data = payload.model_dump(exclude_none=True, exclude={"customer_id", "items"})
+        invoice_create = InvoiceCreate(
+            order_id=order.id,
+            order_number=order.order_number,
+            customer=InvoiceCustomer(
+                id=order.customer.id,
+                name=order.customer.name,
+                email=order.customer.email,
+                phone=order.customer.phone,
+                address=order.customer.address,
+            ),
+        )
+        data = invoice_create.model_dump()
         data["user_id"] = current_user.user.id
-        data["order_id"] = order_id
-        data["order_number"] = order_number
-        data["customer"] = customer_snapshot.model_dump()
-        data["items"] = items
         data["invoice_number"] = await self.get_next_invoice_number(current_user.user.id, session)
-
+        data["invoice_hash"] = secrets.token_hex(8)
+        
         invoice = await self._repo.create(data, session=session)
-        if invoice is None:
-            raise InvoiceNotFoundException()
+        await self._order_service.set_invoice_id(
+            current_user.user.id, order.id, invoice.id, session=session
+        )
 
         await audit.log_event(
             AuditEventType.INVOICE_CREATED,
@@ -138,61 +112,48 @@ class InvoiceService:
             resource_id=str(invoice.id),
             details={
                 "invoice_number": invoice.invoice_number,
-                "total": invoice.total,
-                "customer_id": str(payload.customer_id),
+                "order_id": str(order.id),
             },
         )
+
+        if generate_pdf:
+            await self.get_or_generate_pdf_url(current_user, invoice.id, session=session)
+            invoice = await self._repo.get_by_id(current_user.user.id, invoice.id, session=session)
+            
         return self._to_response(invoice)
-
-    async def create_from_order(
-        self,
-        current_user: SessionContext,
-        order_id: PydanticObjectId,
-        session,
-    ) -> InvoiceResponse:
-        existing = await self._repo.get_by_order_id(
-            current_user.user.id, order_id, session=session
-        )
-        if existing is not None:
-            raise InvoiceAlreadyExistsForOrderException()
-
-        order = await self._order_service.get_own_by_id(current_user, order_id)
-
-        if order.total is None:
-            raise InvoiceOrderNotCompletedException()
-
-        invoice_create = InvoiceCreate(
-            order_id=order.id,
-            customer_id=order.customer.id,
-            items=[InvoiceItemInput.model_validate(item) for item in order.items],
-            subtotal=order.total,
-            discount=0,
-            total=order.total,
-            notes=order.notes,
-        )
-        return await self.create(current_user, invoice_create, session)
 
     async def get_or_generate_pdf_url(
         self,
         current_user: SessionContext,
         invoice_id: PydanticObjectId,
+        force_generate: bool = False,
+        session=None,
     ) -> str:
-        invoice = await self._repo.get_by_id(current_user.user.id, invoice_id)
+        invoice = await self._repo.get_by_id(current_user.user.id, invoice_id, session=session)
         if not invoice:
             raise InvoiceNotFoundException()
 
-        if invoice.pdf_url:
+        if not force_generate and invoice.pdf_url is not None:
             return invoice.pdf_url
 
-        context = {"invoice": invoice, "store": current_user.store, "user": current_user.user}
+        order = await self._order_service.get_own_by_id(current_user, invoice.order_id)
+        context = {
+            "invoice": invoice,
+            "order": order,
+            "store": current_user.store,
+            "user": current_user.user,
+        }
+        pdf_filename = f"invoice-{invoice.invoice_number}-{invoice.invoice_hash}.pdf"
+        pdf_key = f"{PermanentFileUploadPath.INVOICE_PDF.value}/{pdf_filename}"
         file = await self._pdf_service.render_and_upload(
             template_name="invoice.html",
-            filename=f"invoice-{invoice.invoice_number}.pdf",
+            filename=pdf_filename,
             context=context,
             path=PermanentFileUploadPath.INVOICE_PDF.value,
+            key=pdf_key,
         )
         await self._repo.update_by_id(
-            current_user.user.id, invoice_id, {"pdf_url": file.url, "pdf_key": file.key}
+            current_user.user.id, invoice_id, {"pdf_url": file.url, "pdf_key": file.key}, session=session
         )
 
         await audit.log_event(
@@ -204,22 +165,3 @@ class InvoiceService:
             details={"invoice_number": invoice.invoice_number},
         )
         return file.url
-
-    async def delete_own_by_id(
-        self, current_user: SessionContext, id: PydanticObjectId, session=None
-    ) -> None:
-        invoice = await self._repo.get_by_id(current_user.user.id, id)
-        if not invoice:
-            raise InvoiceNotFoundException()
-        if invoice.pdf_key:
-            await self._pdf_service.delete_pdf(invoice.pdf_key)
-        await self._repo.delete_by_id(current_user.user.id, id, session=session)
-
-        await audit.log_event(
-            AuditEventType.INVOICE_DELETED,
-            user_id=current_user.user.id,
-            store_id=current_user.store.id,
-            resource_type=AuditResourceType.INVOICE,
-            resource_id=str(id),
-            details={"invoice_number": invoice.invoice_number},
-        )

@@ -31,11 +31,14 @@ class OrderItemResponse(BaseModel):
 
 class OrderResponse(OrderBase, BaseModelWithId, TimeMixin):
     order_number: str | None = None
+    invoice_id: PydanticObjectId | None = None
     customer: OrderCustomerResponse
     items: list[OrderItemResponse]
     is_read: bool
     source: RecordSource
     status: OrderStatus
+    subtotal: float | None = None
+    total: float | None = None
     model_config = ConfigDict(from_attributes=True)
 
     @computed_field

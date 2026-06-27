@@ -179,7 +179,7 @@ class UserService:
         session=None,
     ) -> UserInternal:
         if isinstance(update_data, UserUpdateInternal):
-            update_data = update_data.model_dump(exclude_none=True)
+            update_data = update_data.model_dump(exclude_unset=True)
 
         try:
             updated_user = await self._repo.update_by_email(email, update_data, session=session)

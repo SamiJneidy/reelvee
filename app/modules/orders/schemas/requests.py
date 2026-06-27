@@ -1,5 +1,5 @@
 from beanie import PydanticObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.enums import OrderStatus
 from app.modules.customers.schemas.requests import CustomerCreatePublic
@@ -23,8 +23,10 @@ class OrderCreate(OrderBase):
     customer_id: PydanticObjectId
     items: list[OrderItemInput] = Field(min_length=1)
     status: OrderStatus
-    total: float | None = Field(None, ge=0)
     total_cost: float | None = Field(None, ge=0)
+    discount_amount: float = Field(0.0, ge=0)
+    shipping_fees: float = Field(0.0, ge=0)
+    extra_fees: float = Field(0.0, ge=0)
 
 
 class OrderCreatePublic(BaseModel):
@@ -35,8 +37,10 @@ class OrderCreatePublic(BaseModel):
 
 
 class OrderUpdate(OrderBase):
-    items: list[OrderItemInputPublic] | None = None
-    total: float | None = Field(None, ge=0)
+    items: list[OrderItemInputPublic] | None = Field(None, min_length=1)
     total_cost: float | None = Field(None, ge=0)
+    discount_amount: float | None = Field(None, ge=0)
+    shipping_fees: float | None = Field(None, ge=0)
+    extra_fees: float | None = Field(None, ge=0)
     status: OrderStatus | None = None
     is_read: bool | None = None

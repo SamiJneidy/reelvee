@@ -48,11 +48,16 @@ class OrderItem(BaseModel):
 class Order(BaseDocument):
     # Relationships
     user_id: PydanticObjectId
+    invoice_id: PydanticObjectId | None = None
     customer: OrderCustomer
 
     # Pricing
     items: list[OrderItem] = []
-    total: float | None = None          # actual revenue agreed with customer
+    subtotal: float = 0.0       # sum of item subtotals, computed by the service
+    discount_amount: float = 0.0
+    shipping_fees: float = 0.0
+    extra_fees: float = 0.0
+    total: float = 0.0          # computed: subtotal - discount + shipping + extra_fees
     total_cost: float | None = None     # expense for this order
 
     # Payment
@@ -77,6 +82,7 @@ class Order(BaseDocument):
         indexes = [
             IndexModel([("user_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)]),
             IndexModel([("user_id", ASCENDING), ("is_read", ASCENDING)]),
+            IndexModel([("user_id", ASCENDING), ("invoice_id", ASCENDING)]),
             IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)]),
             IndexModel([("user_id", ASCENDING), ("payment.status", ASCENDING)]),
             IndexModel([("customer.id", ASCENDING), ("created_at", DESCENDING)]),

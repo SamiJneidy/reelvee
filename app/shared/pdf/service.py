@@ -28,6 +28,7 @@ class PDFService:
         filename: str,
         context: dict,
         path: str,
+        key: str | None = None,
     ) -> FileResponse:
         pdf_bytes = await self.render_bytes(template_name, context)
         return await self._storage.upload_bytes(
@@ -35,6 +36,7 @@ class PDFService:
             filename=filename,
             content=pdf_bytes,
             content_type="application/pdf",
+            key=key,
         )
 
     async def delete_pdf(self, key: str) -> None:

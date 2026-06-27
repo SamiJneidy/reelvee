@@ -2,7 +2,6 @@ from beanie import Document, PydanticObjectId
 from pydantic import BaseModel
 from pymongo import ASCENDING, DESCENDING, IndexModel
 
-from app.core.enums import ItemType
 from app.shared.models.base import BaseDocument
 
 
@@ -28,26 +27,13 @@ class InvoiceCustomer(BaseModel):
     address: str | None = None
 
 
-class InvoiceItem(BaseModel):
-    id: PydanticObjectId
-    name: str
-    price: float
-    quantity: int = 1
-    subtotal: float
-    type: ItemType
-
-
 class Invoice(BaseDocument):
     user_id: PydanticObjectId
-    invoice_number: str   # set by the service on create
-    order_id: PydanticObjectId | None = None
+    invoice_number: str
+    order_id: PydanticObjectId
     order_number: str | None = None
     customer: InvoiceCustomer
-    items: list[InvoiceItem]
-    subtotal: float
-    discount: float = 0
-    total: float
-    notes: str | None = None
+    invoice_hash: str = ""
     pdf_url: str | None = None
     pdf_key: str | None = None
 
@@ -66,6 +52,5 @@ class Invoice(BaseDocument):
             ),
             IndexModel([("user_id", ASCENDING), ("order_number", ASCENDING)]),
             IndexModel([("user_id", ASCENDING), ("customer.id", ASCENDING)]),
-            IndexModel([("user_id", ASCENDING), ("items.id", ASCENDING)]),
             IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)]),
         ]

@@ -3,16 +3,13 @@ HTML email templates.
 
 All templates use inline CSS for maximum email-client compatibility.
 Color palette:
-  primary   #4F46E5  (indigo-600)
-  text      #111827  (gray-900)
-  muted     #6B7280  (gray-500)
-  bg        #F3F4F6  (gray-100)
-  card      #FFFFFF
-  border    #E5E7EB  (gray-200)
+  accent    #daff02
+  bg/dark   #000000
+  light     #ffffff
 """
 
 _BRAND = "Reelvee"
-_BRAND_COLOR = "#4F46E5"
+_BRAND_COLOR = "#daff02"
 _FONT = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
 
 # ---------------------------------------------------------------------------
@@ -35,22 +32,22 @@ def _base(title: str, preview: str, body_html: str) -> str:
   <title>{title}</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
-<body style="margin:0;padding:0;background:#F3F4F6;{_FONT}">
+<body style="margin:0;padding:0;background:#000000;{_FONT}">
   <!-- preview text (hidden) -->
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all">{preview}&nbsp;‌&nbsp;‌&nbsp;‌&nbsp;‌&nbsp;‌</div>
 
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F3F4F6">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#000000">
     <tr>
       <td align="center" style="padding:40px 16px">
 
         <!-- Card -->
         <table width="100%" cellpadding="0" cellspacing="0" border="0"
-               style="max-width:560px;background:#FFFFFF;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden">
+               style="max-width:560px;background:#000000;border-radius:12px;border:1px solid {_BRAND_COLOR};overflow:hidden">
 
           <!-- Header -->
           <tr>
             <td style="background:{_BRAND_COLOR};padding:28px 40px">
-              <p style="margin:0;{_FONT};font-size:22px;font-weight:700;color:#FFFFFF;letter-spacing:-0.3px">
+              <p style="margin:0;{_FONT};font-size:22px;font-weight:700;color:#000000;letter-spacing:-0.3px">
                 {_BRAND}
               </p>
             </td>
@@ -65,12 +62,12 @@ def _base(title: str, preview: str, body_html: str) -> str:
 
           <!-- Footer -->
           <tr>
-            <td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:20px 40px">
-              <p style="margin:0;{_FONT};font-size:12px;color:#9CA3AF;line-height:1.6">
+            <td style="background:#000000;border-top:1px solid {_BRAND_COLOR};padding:20px 40px">
+              <p style="margin:0;{_FONT};font-size:12px;color:#ffffff;line-height:1.6">
                 You received this email because an action was performed on your {_BRAND} account.
                 If this wasn't you, you can safely ignore this email.
               </p>
-              <p style="margin:8px 0 0;{_FONT};font-size:12px;color:#9CA3AF">
+              <p style="margin:8px 0 0;{_FONT};font-size:12px;color:#ffffff">
                 &copy; {_BRAND} &mdash; All rights reserved.
               </p>
             </td>
@@ -97,7 +94,7 @@ def _button(label: str, href: str) -> str:
     <td style="border-radius:8px;background:{_BRAND_COLOR}">
       <a href="{href}"
          style="display:inline-block;padding:13px 28px;{_FONT};font-size:15px;font-weight:600;
-                color:#FFFFFF;text-decoration:none;border-radius:8px">
+                color:#000000;text-decoration:none;border-radius:8px">
         {label}
       </a>
     </td>
@@ -110,13 +107,13 @@ def _button(label: str, href: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _h1(text: str) -> str:
-    return f'<h1 style="margin:0 0 8px;{_FONT};font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px">{text}</h1>'
+    return f'<h1 style="margin:0 0 8px;{_FONT};font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px">{text}</h1>'
 
-def _p(text: str, color: str = "#374151", size: str = "15px") -> str:
+def _p(text: str, color: str = "#ffffff", size: str = "15px") -> str:
     return f'<p style="margin:12px 0 0;{_FONT};font-size:{size};color:{color};line-height:1.65">{text}</p>'
 
 def _divider() -> str:
-    return '<hr style="border:none;border-top:1px solid #E5E7EB;margin:28px 0"/>'
+    return '<hr style="border:none;border-top:1px solid #daff02;margin:28px 0"/>'
 
 
 # ---------------------------------------------------------------------------
@@ -141,12 +138,12 @@ def welcome_template(email: str) -> str:
             "• Create and manage your product catalog<br/>"
             "• Receive and track orders in real time<br/>"
             "• Share your store link with customers instantly",
-            color="#6B7280",
+            color="#ffffff",
             size="14px",
         )
         + _p(
             "If you didn't create this account, please ignore this email.",
-            color="#9CA3AF",
+            color="#ffffff",
             size="13px",
         )
     )
@@ -179,19 +176,19 @@ def onboarding_template(
         + _p(
             "Next steps: add products, customize your page, and share your link. "
             f"If you need anything, we are here to help.",
-            color="#6B7280",
+            color="#ffffff",
             size="14px",
         )
         + _p(
             f'Or open this link:<br/>'
             f'<a href="{store_public_url}" style="color:{_BRAND_COLOR};word-break:break-all">'
             f"{store_public_url}</a>",
-            color="#6B7280",
+            color="#ffffff",
             size="13px",
         )
         + _p(
             f"If you did not finish onboarding on {_BRAND}, contact support.",
-            color="#9CA3AF",
+            color="#ffffff",
             size="13px",
         )
     )
@@ -210,7 +207,7 @@ def email_verification_otp_template(code: str) -> str:
     otp_block = f"""
 <table cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0">
   <tr>
-    <td style="background:#EEF2FF;border:1.5px dashed {_BRAND_COLOR};
+    <td style="background:#000000;border:1.5px dashed {_BRAND_COLOR};
                border-radius:10px;padding:18px 40px;text-align:center">
       <p style="margin:0;{_FONT};font-size:36px;font-weight:800;
                 letter-spacing:10px;color:{_BRAND_COLOR}">{code}</p>
@@ -225,7 +222,7 @@ def email_verification_otp_template(code: str) -> str:
         + _divider()
         + _p(
             f"Never share this code with anyone, including {_BRAND} support.",
-            color="#9CA3AF",
+            color="#ffffff",
             size="13px",
         )
     )
@@ -252,13 +249,13 @@ def password_reset_template(link: str) -> str:
         + _p(
             f'Or copy and paste this link into your browser:<br/>'
             f'<a href="{link}" style="color:{_BRAND_COLOR};word-break:break-all">{link}</a>',
-            color="#6B7280",
+            color="#ffffff",
             size="13px",
         )
         + _p(
             "This link will expire soon. If you didn't request a password reset, "
             "you can safely ignore this email — your password won't change.",
-            color="#9CA3AF",
+            color="#ffffff",
             size="13px",
         )
     )
@@ -285,13 +282,13 @@ def email_change_template(link: str) -> str:
         + _p(
             f'Or copy and paste this link into your browser:<br/>'
             f'<a href="{link}" style="color:{_BRAND_COLOR};word-break:break-all">{link}</a>',
-            color="#6B7280",
+            color="#ffffff",
             size="13px",
         )
         + _p(
             "If you didn't request this change, please ignore this email. "
             "Your current email address will remain active.",
-            color="#9CA3AF",
+            color="#ffffff",
             size="13px",
         )
     )

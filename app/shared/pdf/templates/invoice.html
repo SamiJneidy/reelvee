@@ -24,10 +24,10 @@
     }
 
     /* ─────────────────────────────
-       HEADER — bold indigo block
+       HEADER — bold black block
     ───────────────────────────── */
     .page-header {
-      background: linear-gradient(135deg, #4338CA, #4F46E5 60%, #6366F1);
+      background: #000000;
       padding: 32px 36px;
       display: flex;
       justify-content: space-between;
@@ -66,7 +66,7 @@
     .invoice-word {
       font-size: 30pt;
       font-weight: 900;
-      color: rgba(255,255,255,0.18);
+      color: rgba(218,255,2,0.28);
       letter-spacing: -1px;
       line-height: 1;
       text-transform: uppercase;
@@ -103,7 +103,7 @@
        BILL-TO BAND
     ───────────────────────────── */
     .bill-to-band {
-      background: #F5F6FF;
+      background: #ffffff;
       border-bottom: 1px solid #E5E7EB;
       padding: 16px 36px;
       display: flex;
@@ -162,8 +162,8 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: #fff;
-      background: #4F46E5;
+      color: #000000;
+      background: #daff02;
       padding: 10px 16px;
       text-align: left;
     }
@@ -211,11 +211,11 @@
     }
 
     .grand-total {
-      background: #4F46E5;
+      background: #daff02;
       border-bottom: none;
       font-size: 11pt;
       font-weight: 700;
-      color: #fff;
+      color: #000000;
       padding: 11px 16px;
     }
 
@@ -225,8 +225,8 @@
     .notes {
       margin-bottom: 16px;
       padding: 12px 16px;
-      background: #F5F6FF;
-      border-left: 4px solid #4F46E5;
+      background: #ffffff;
+      border-left: 4px solid #000000;
       border-radius: 0 8px 8px 0;
     }
 
@@ -235,7 +235,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.09em;
-      color: #6366F1;
+      color: #000000;
       margin-bottom: 5px;
     }
 
@@ -262,8 +262,16 @@
     }
 
     .footer strong {
-      color: #4F46E5;
+      color: #000000;
       font-weight: 600;
+    }
+
+    .footer-hash {
+      display: block;
+      margin-top: 2px;
+      font-size: 7pt;
+      letter-spacing: 0.08em;
+      color: #D1D5DB;
     }
   </style>
 </head>
@@ -322,7 +330,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for item in invoice.items %}
+          {% for item in order.items %}
           <tr>
             <td><span class="item-name">{{ item.name }}</span></td>
             <td class="right">{{ item.quantity }}</td>
@@ -338,25 +346,37 @@
       <div class="totals-box">
         <div class="totals-row">
           <span>Subtotal</span>
-          <span>{% if store.currency %}{{ store.currency }} {% endif %}{{ "%.2f"|format(invoice.subtotal) }}</span>
+          <span>{% if store.currency %}{{ store.currency }} {% endif %}{{ "%.2f"|format(order.subtotal) }}</span>
         </div>
-        {% if invoice.discount %}
+        {% if order.discount_amount %}
         <div class="totals-row">
           <span>Discount</span>
-          <span>- {% if store.currency %}{{ store.currency }} {% endif %}{{ "%.2f"|format(invoice.discount) }}</span>
+          <span>- {% if store.currency %}{{ store.currency }} {% endif %}{{ "%.2f"|format(order.discount_amount) }}</span>
+        </div>
+        {% endif %}
+        {% if order.shipping_fees %}
+        <div class="totals-row">
+          <span>Shipping</span>
+          <span>{% if store.currency %}{{ store.currency }} {% endif %}{{ "%.2f"|format(order.shipping_fees) }}</span>
+        </div>
+        {% endif %}
+        {% if order.extra_fees %}
+        <div class="totals-row">
+          <span>Extra fees</span>
+          <span>{% if store.currency %}{{ store.currency }} {% endif %}{{ "%.2f"|format(order.extra_fees) }}</span>
         </div>
         {% endif %}
         <div class="totals-row grand-total">
           <span>Total</span>
-          <span>{% if store.currency %}{{ store.currency }} {% endif %}{{ "%.2f"|format(invoice.total) }}</span>
+          <span>{% if store.currency %}{{ store.currency }} {% endif %}{{ "%.2f"|format(order.total) }}</span>
         </div>
       </div>
     </div>
 
-    {% if invoice.notes %}
+    {% if order.notes %}
     <div class="notes">
       <div class="notes-title">Notes</div>
-      <p>{{ invoice.notes }}</p>
+      <p>{{ order.notes }}</p>
     </div>
     {% endif %}
 
@@ -364,6 +384,7 @@
 
   <div class="footer">
     Powered by <strong>Reelvee</strong>
+    <span class="footer-hash">{{ invoice.invoice_hash }}</span>
   </div>
 
 </body>
