@@ -1,5 +1,4 @@
-from pydantic import BaseModel
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import ExpenseCategory
 from app.shared.schemas.base import BaseModelWithId

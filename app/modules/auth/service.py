@@ -75,6 +75,7 @@ class AuthService:
             pass
 
         user_data = UserCreate(
+            sami="sami",
             email=data.email,
             password=hash_password(data.password),
             status=UserStatus.PENDING,

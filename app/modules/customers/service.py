@@ -16,9 +16,7 @@ from app.modules.customers.schemas import (
     CustomerCreate,
     CustomerCreatePublic,
     CustomerFilters,
-    CustomerInternal,
     CustomerUpdate,
-    CustomerUpdateInternal,
 )
 from app.modules.customers.schemas.responses import CustomerResponse
 
@@ -31,9 +29,6 @@ class CustomerService:
 
     def _to_response(self, customer) -> CustomerResponse:
         return CustomerResponse.model_validate(customer)
-
-    def _to_internal(self, customer) -> CustomerInternal:
-        return CustomerInternal.model_validate(customer)
 
     # -----------------------------------------------------------------
     # Owner-scoped
@@ -134,7 +129,7 @@ class CustomerService:
         user_id: PydanticObjectId,
         payload: CustomerCreatePublic,
         session=None,
-    ) -> CustomerInternal:
+    ) -> CustomerResponse:
         data = payload.model_dump()
         data["user_id"] = user_id
         data["source"] = RecordSource.WEB
@@ -143,10 +138,10 @@ class CustomerService:
             customer = await self._repo.create(data, session=session)
         except (RevisionIdWasChanged, DuplicateKeyError):
             raise CustomerAlreadyExistsException()
-        return self._to_internal(customer)
+        return self._to_response(customer)
 
-    async def get_by_phone(self, user_id: PydanticObjectId, phone: str) -> CustomerInternal | None:
+    async def get_by_phone(self, user_id: PydanticObjectId, phone: str) -> CustomerResponse | None:
         customer = await self._repo.get_by_phone(user_id, phone)
         if not customer:
             return None
-        return self._to_internal(customer)
+        return self._to_response(customer)

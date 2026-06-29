@@ -59,7 +59,7 @@ class ResendEmailService(EmailService):
         self, email: str, *, first_name: str | None, store_url: str
     ) -> None:
         store_url = store_url.strip().lower()
-        store_public_url = f"{settings.frontend_url.rstrip('/')}/@{store_url}"
+        store_public_url = f"{settings.frontend_url.rstrip('/')}/{store_url}"
         await self._send(
             to=[email],
             subject=SUBJECT_ONBOARDING,

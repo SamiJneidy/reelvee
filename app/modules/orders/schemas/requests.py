@@ -1,3 +1,4 @@
+from typing import Optional
 from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
 
@@ -29,7 +30,7 @@ class OrderCreate(BaseModel):
     payment: PaymentDetails | None = None
     customer_message: str | None = None
     address: str | None = None
-    delivery_status: DeliveryStatus | None = None
+    delivery_status: Optional[DeliveryStatus] = None
     notes: str | None = None
 
 
@@ -42,12 +43,12 @@ class OrderCreatePublic(BaseModel):
 
 class OrderUpdate(BaseModel):
     """PATCH schema — every field is optional; only sent fields are applied."""
-    items: list[OrderItemInput] | None = Field(None, min_length=1)
-    status: OrderStatus | None = None
-    is_read: bool | None = None
-    discount_amount: float | None = Field(None, ge=0)
-    shipping_fees: float | None = Field(None, ge=0)
-    extra_fees: float | None = Field(None, ge=0)
+    items: list[OrderItemInput] = Field(None, min_length=1)
+    status: OrderStatus = None
+    is_read: bool = Field(None, ge=0)
+    discount_amount: float = Field(None, ge=0)
+    shipping_fees: float = Field(None, ge=0)
+    extra_fees: float = Field(None, ge=0)
     payment: PaymentDetails | None = None
     customer_message: str | None = None
     address: str | None = None
