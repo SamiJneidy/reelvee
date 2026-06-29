@@ -45,7 +45,10 @@ def configure_logging(
 
     if use_console_renderer:
         renderer: Processor = structlog.dev.ConsoleRenderer(
-            colors=True, pad_level=False, pad_event=0
+            colors=True,
+            pad_level=False,
+            pad_event=0,
+            exception_formatter=structlog.dev.plain_traceback,
         )
         render_chain: list[Processor] = [structlog.stdlib.ProcessorFormatter.remove_processors_meta]
         if compact_http_context:
