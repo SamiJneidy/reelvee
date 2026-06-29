@@ -37,11 +37,14 @@ class OrderResponse(OrderBase, BaseModelWithId, TimeMixin):
     is_read: bool
     source: RecordSource
     status: OrderStatus
-    subtotal: float
-    total: float
+    subtotal: float | None = None
+    total: float | None = None
+    total_cost: float | None = None
     model_config = ConfigDict(from_attributes=True)
 
     @computed_field
     @property
-    def profit(self) -> float:
-        return self.total - self.total_cost
+    def profit(self) -> float | None:
+        if self.total is not None and self.total_cost is not None:
+            return round(self.total - self.total_cost, 2)
+        return None

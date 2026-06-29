@@ -13,6 +13,9 @@ class OrderInternal(OrderBase, BaseModelWithId, TimeMixin):
     is_read: bool
     source: RecordSource
     status: OrderStatus
+    subtotal: float | None = None
+    total: float | None = None
+    total_cost: float | None = None
     model_config = ConfigDict(from_attributes=True)
 
 

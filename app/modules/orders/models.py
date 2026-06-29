@@ -39,6 +39,7 @@ class OrderItem(BaseModel):
     id: PydanticObjectId
     name: str
     price: float
+    cost: float = 0.0
     quantity: int = 1
     subtotal: float
     type: ItemType

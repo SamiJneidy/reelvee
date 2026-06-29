@@ -56,7 +56,7 @@ class OrderService:
         total    = subtotal - discount_amount + shipping_fees + extra_fees
         """
         subtotal = round(sum(item["subtotal"] for item in items), 2)
-        total_cost = round(sum(item["cost"] for item in items if item["cost"] is not None), 2)
+        total_cost = round(sum(item["cost"] * item["quantity"] for item in items), 2)
         total = round(subtotal - discount_amount + shipping_fees + extra_fees, 2)
         return subtotal, total, total_cost
 
@@ -78,6 +78,7 @@ class OrderService:
                 "name": db_item.name,
                 "quantity": item_input.quantity,
                 "price": round(price, 2),
+                "cost": round(db_item.cost, 2),
                 "subtotal": round(subtotal, 2),
                 "type": db_item.type,
                 "thumbnail": db_item.thumbnail.model_dump() if db_item.thumbnail else None,
