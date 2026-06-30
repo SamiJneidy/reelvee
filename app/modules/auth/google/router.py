@@ -110,13 +110,19 @@ async def exchange_google_auth_token(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SingleResponse[ExchangeGoogleAuthTokenResponse]:
     user = await auth_service.complete_google_login(body.google_auth_token)
-
+    access_token = None
     if user.is_completed:
-        await auth_service.create_access_token(request, response, user.id)
-        await auth_service.create_refresh_token(request, response, user.id)
+        access_token = await auth_service.create_access_token(request, response, user.id, set_cookie=False)
+        refresh_token = await auth_service.create_refresh_token(request, response, user.id)
         redirect_to = "dashboard"
     else:
         await auth_service.create_sign_up_complete_token(request, response, user.id)
         redirect_to = "user-onboarding"
 
-    return SingleResponse(data=ExchangeGoogleAuthTokenResponse(redirect_to=redirect_to, user=user))
+    return SingleResponse(
+        data=ExchangeGoogleAuthTokenResponse(
+            redirect_to=redirect_to,
+            user=user,
+            access_token=access_token,
+        )
+    )

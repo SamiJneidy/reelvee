@@ -50,3 +50,4 @@ class ExchangeGoogleAuthTokenRequest(BaseModel):
 class ExchangeGoogleAuthTokenResponse(BaseModel):
     redirect_to: Literal["dashboard", "user-onboarding"]
     user: UserResponse
+    access_token: str | None = None
