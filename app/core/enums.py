@@ -17,6 +17,7 @@ class TokenScope(str, Enum):
     SIGN_UP_COMPLETE = "SIGN_UP_COMPLETE"
     RESET_PASSWORD = "RESET_PASSWORD"
     EMAIL_CHANGE = "EMAIL_CHANGE"
+    GOOGLE_AUTH = "GOOGLE_AUTH"
 
 class UserRole(str, Enum):
     SUPER_ADMIN = "SUPER_ADMIN"

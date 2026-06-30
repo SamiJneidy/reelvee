@@ -3,7 +3,7 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from app.core.config import settings
-from .schemas import AccessToken, EmailChangeToken, PasswordResetToken, RefreshToken, RefreshTokenCreate, SignUpCompleteToken, RefreshTokenInDB
+from .schemas import AccessToken, EmailChangeToken, GoogleAuthToken, PasswordResetToken, RefreshToken, RefreshTokenCreate, SignUpCompleteToken, RefreshTokenInDB
 from .repository import TokenRepository
 from .exceptions import InvalidTokenException
 
@@ -80,3 +80,9 @@ class TokenService:
         payload = token.model_dump()
         return self._generate_token(payload)
 
+    
+    def generate_google_auth_token(self, token: GoogleAuthToken) -> str:
+        token.iat = datetime.now(tz=timezone.utc)
+        token.exp = datetime.now(tz=timezone.utc) + timedelta(minutes=settings.google_auth_token_expiration_minutes)
+        payload = token.model_dump()
+        return self._generate_token(payload)

@@ -18,6 +18,7 @@ from app.modules.auth.google.schemas import (
     GoogleTokenResponse,
     GoogleUserInfo,
 )
+from app.modules.auth.tokens.service import TokenService
 from app.modules.users.exceptions import UserNotFoundException
 from app.modules.users.schemas import UserCreate
 from app.modules.users.schemas.internal import UserInternal
@@ -32,8 +33,9 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 
 class GoogleAuthService:
 
-    def __init__(self, user_service: UserService) -> None:
+    def __init__(self, user_service: UserService, token_service: TokenService) -> None:
         self._user_service = user_service
+        self._token_service = token_service
 
     # ------------------------------------------------------------------
     # Helpers
@@ -58,8 +60,6 @@ class GoogleAuthService:
     # ------------------------------------------------------------------
 
     async def exchange_code(self, code: str) -> GoogleTokenResponse:
-        if not settings.google_client_id or not settings.google_client_secret or not settings.google_redirect_uri:
-            raise GoogleOAuthNotConfiguredException()
         body = GoogleTokenRequest(
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,

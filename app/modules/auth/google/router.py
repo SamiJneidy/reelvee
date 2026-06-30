@@ -14,8 +14,13 @@ from app.modules.auth.google.exceptions import (
     GoogleOAuthException,
     GoogleOAuthNotConfiguredException,
 )
+from app.modules.auth.google.schemas import ExchangeGoogleAuthTokenRequest, ExchangeGoogleAuthTokenResponse
 from app.modules.auth.google.service import GoogleAuthService
 from app.modules.auth.service import AuthService
+from app.modules.auth.tokens.dependencies import get_token_service
+from app.modules.auth.tokens.schemas import GoogleAuthToken
+from app.modules.auth.tokens.service import TokenService
+from app.shared.schemas.responses import SingleResponse
 
 logger = structlog.get_logger(__name__)
 
@@ -53,12 +58,11 @@ async def google_login(
 @router.get("/callback", include_in_schema=False)
 async def google_callback(
     request: Request,
-    response: Response,
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
-    auth_service: AuthService = Depends(get_auth_service),
     google_auth_service: GoogleAuthService = Depends(get_google_auth_service),
+    token_service: TokenService = Depends(get_token_service),
 ) -> RedirectResponse:
     if error:
         return _error_redirect(error)
@@ -88,25 +92,31 @@ async def google_callback(
         details={"email": user_info.email},
     )
 
-    # Build the redirect first, then set cookies directly on it.
-    # Cookies set on the injected Response parameter are NOT transferred to an
-    # explicitly returned RedirectResponse — they must be set on the object returned.
-    if user.is_completed:
-        redirect_to_page = "dashboard"
-        token = await auth_service.create_refresh_token(
-            request, response, user.id, set_cookie=False
-        )
-        params = urlencode({"redirect_to": redirect_to_page})
-        redirect_response = RedirectResponse(url=f"{_frontend_callback_url()}?{params}")
-        await auth_service.set_refresh_token_cookie(request, redirect_response, token)
-    else:
-        redirect_to_page = "user-onboarding"
-        token = await auth_service.create_sign_up_complete_token(
-            request, response, user.id, set_cookie=False
-        )
-        params = urlencode({"redirect_to": redirect_to_page})
-        redirect_response = RedirectResponse(url=f"{_frontend_callback_url()}?{params}")
-        await auth_service.set_sign_up_complete_token_cookie(request, redirect_response, token)
-
+    # Issue a short-lived google_auth_token. The frontend will POST it back to
+    # /exchange to receive real session cookies — this avoids setting cross-origin
+    # cookies directly from the redirect response.
+    google_auth_token = token_service.generate_google_auth_token(GoogleAuthToken(sub=str(user.id), email=user.email))
+    params = urlencode({"google_auth_token": google_auth_token})
+    redirect_response = RedirectResponse(url=f"{_frontend_callback_url()}?{params}")
     redirect_response.delete_cookie("oauth_state")
     return redirect_response
+
+
+@router.post("/exchange", summary="Exchange Google auth token for session tokens")
+async def exchange_google_auth_token(
+    request: Request,
+    response: Response,
+    body: ExchangeGoogleAuthTokenRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> SingleResponse[ExchangeGoogleAuthTokenResponse]:
+    user = await auth_service.complete_google_login(body.google_auth_token)
+
+    if user.is_completed:
+        await auth_service.create_access_token(request, response, user.id)
+        await auth_service.create_refresh_token(request, response, user.id)
+        redirect_to = "dashboard"
+    else:
+        await auth_service.create_sign_up_complete_token(request, response, user.id)
+        redirect_to = "user-onboarding"
+
+    return SingleResponse(data=ExchangeGoogleAuthTokenResponse(redirect_to=redirect_to, user=user))

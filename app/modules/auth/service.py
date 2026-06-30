@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.core.enums import AuthProvider, OTPUsage, UserStatus, TokenScope, UserStep
 from app.core.security import hash_password, verify_password
 from app.modules.auth.exceptions import (
+    ContinueWithGoogleLoginException,
     InvalidCredentialsException,
     PasswordResetNotAllowedException,
     UserDeletedException,
@@ -66,6 +67,7 @@ class AuthService:
         self._email_service = email_service
         self._otp_service = otp_service
 
+
     async def sign_up(self, data: SignUpRequest, session=None) -> UserResponse:
         try:
             existing = await self._user_service.get_by_email_in_db(data.email)
@@ -75,7 +77,6 @@ class AuthService:
             pass
 
         user_data = UserCreate(
-            sami="sami",
             email=data.email,
             password=hash_password(data.password),
             status=UserStatus.PENDING,
@@ -90,7 +91,6 @@ class AuthService:
         user = await self._user_service.create_user(user_data, session)
         otp_req = SendEmailVerificationOTPRequest(email=data.email)
         await self._otp_service.create_email_verification_otp(otp_req, session)
-        await self._email_service.send_welcome_email(data.email)
 
         await audit.log_event(
             AuditEventType.AUTH_SIGNUP,
@@ -99,12 +99,44 @@ class AuthService:
         )
         return UserResponse.model_validate(user)
 
+
+    async def _finalize_login(self, user: UserInternal, email: str, session=None) -> UserResponse:
+        """Shared post-identity-verification logic for all login flows."""
+        if not user.is_email_verified:
+            raise UserNotVerifiedException()
+
+        # Onboarding not finished — return user so the router can issue a sign_up_complete_token.
+        if not user.is_completed:
+            return UserResponse.model_validate(user)
+
+        if user.is_deleted:
+            raise UserDeletedException()
+        if user.status == UserStatus.DISABLED:
+            raise UserDisabledException()
+        if user.status == UserStatus.BLOCKED:
+            raise UserBlockedException()
+        if user.status == UserStatus.PENDING:
+            raise UserNotVerifiedException()
+
+        if user.invalid_login_attempts > 0:
+            await self._user_service.reset_invalid_login_attempts(email, session)
+
+        user = await self._user_service.update_last_login(email, datetime.now(timezone.utc), session)
+
+        await audit.log_event(
+            AuditEventType.AUTH_LOGIN,
+            user_id=user.id,
+            details={"email": email},
+        )
+        return UserResponse.model_validate(user)
+
+
     async def login(self, credentials: LoginRequest, session=None) -> UserResponse:
         """Validate credentials and return user. Caller checks is_completed to decide which tokens to issue."""
         user = await self._user_service.get_by_email_in_db(credentials.email)
 
-        if user.password is None:
-            raise InvalidCredentialsException()
+        if user.auth_provider == AuthProvider.GOOGLE and user.password is None:
+            raise ContinueWithGoogleLoginException()
 
         # Run bcrypt in a thread pool — it is sync.
         password_valid = await asyncio.to_thread(
@@ -121,33 +153,19 @@ class AuthService:
             )
             raise InvalidCredentialsException()
 
-        if not user.is_email_verified:
-            raise UserNotVerifiedException()
+        return await self._finalize_login(user, credentials.email, session)
 
-        # Onboarding not finished — return user so the router can issue a sign_up_complete_token
-        if not user.is_completed:
-            return UserResponse.model_validate(user)
 
-        if user.is_deleted:
-            raise UserDeletedException()
-        if user.status == UserStatus.DISABLED:
-            raise UserDisabledException()
-        if user.status == UserStatus.BLOCKED:
-            raise UserBlockedException()
-        if user.status == UserStatus.PENDING:
-            raise UserNotVerifiedException()
+    async def complete_google_login(self, google_auth_token: str, session=None) -> UserResponse:
+        """Validate a short-lived google_auth_token and run all standard login checks."""
+        payload = self._token_service.decode_token(google_auth_token)
+        if payload.get("scope") != TokenScope.GOOGLE_AUTH:
+            raise InvalidTokenException()
 
-        if user.invalid_login_attempts > 0:
-            await self._user_service.reset_invalid_login_attempts(credentials.email, session)
+        email = payload.get("email")
+        user = await self._user_service.get_by_email_in_db(email)
+        return await self._finalize_login(user, email, session)
 
-        user = await self._user_service.update_last_login(credentials.email, datetime.now(timezone.utc), session)
-
-        await audit.log_event(
-            AuditEventType.AUTH_LOGIN,
-            user_id=user.id,
-            details={"email": credentials.email},
-        )
-        return UserResponse.model_validate(user)
 
     async def request_password_reset(
         self, data: RequestPasswordResetRequest, session = None

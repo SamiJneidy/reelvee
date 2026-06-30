@@ -1,4 +1,7 @@
+from typing import Literal
 from pydantic import BaseModel, Field
+
+from app.modules.users.schemas.responses import UserResponse
 
 
 class GoogleAuthorizationParams(BaseModel):
@@ -40,3 +43,10 @@ class GoogleUserInfo(BaseModel):
     family_name: str | None = None
     picture: str | None = None
     name: str | None = None
+
+class ExchangeGoogleAuthTokenRequest(BaseModel):
+    google_auth_token: str
+
+class ExchangeGoogleAuthTokenResponse(BaseModel):
+    redirect_to: Literal["dashboard", "user-onboarding"]
+    user: UserResponse

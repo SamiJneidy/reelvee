@@ -48,6 +48,12 @@ class EmailChangeToken(TokenPayloadBase):
     iat: datetime = datetime.now(timezone.utc)
     exp: datetime = datetime.now(timezone.utc) + timedelta(minutes=settings.email_change_token_expiration_minutes)
 
+class GoogleAuthToken(TokenPayloadBase):
+    scope: Literal[TokenScope.GOOGLE_AUTH] = TokenScope.GOOGLE_AUTH
+    email: str
+    iat: datetime = datetime.now(timezone.utc)
+    exp: datetime = datetime.now(timezone.utc) + timedelta(minutes=settings.google_auth_token_expiration_minutes)
+
 class RefreshTokenCreate(BaseModel):
     token_id: str
     family_id: str

@@ -33,3 +33,8 @@ class SignUpNotCompletedException(BaseAppException):
 class UserDeletedException(BaseAppException):
     detail = "Your account has been deleted. Please contact support to restore your account."
     status_code = status.HTTP_403_FORBIDDEN
+
+
+class ContinueWithGoogleLoginException(BaseAppException):
+    detail = "Continue with Google login"
+    status_code = status.HTTP_401_UNAUTHORIZED

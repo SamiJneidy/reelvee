@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     user_invitation_token_expiration_minutes: int
     otp_expiration_minutes: int
     sign_up_complete_expiration_days: int
+    google_auth_token_expiration_minutes: int
 
     # Frontend
     frontend_url: str
